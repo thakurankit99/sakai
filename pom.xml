@@ -47,6 +47,7 @@
                 <module>announcement</module>
                 <module>archive</module>
                 <module>assignment</module>
+                <module>attendance</module>
                 <module>basiclti</module>
                 <module>calendar</module>
                 <module>chat</module>
