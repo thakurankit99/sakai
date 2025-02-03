@@ -6,16 +6,127 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <script src="/library/js/headscripts.js"></script>
     <link rel="stylesheet" href="/library/content/gateway/gateway.scss">
+    <script>
+        includeWebjarLibrary("bootstrap", {includeCss: true});
+    </script>
+    <style>
+        :root {
+            --primary-accent: #4f46e5;
+            --secondary-accent: #f59e0b;
+        }
+
+        body {
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            margin: 0;
+            padding: 0;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .hero-card, .jumbotron.jtop {
+            background: url('https://i.ibb.co/RkhStppJ/2022-06-17.webp') center/cover;
+            color: white;
+            padding: 4rem 2rem;
+            text-align: center;
+            border-radius: 1.5rem;
+            margin: 1rem;
+            max-width: 800px;
+            backdrop-filter: blur(70px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37);
+            position: relative;
+        }
+        
+        .hero-card::before, .jumbotron.jtop::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            border-radius: 1.5rem;
+        }
+
+        .hero-card *, .jumbotron.jtop * {
+            position: relative;
+            z-index: 1;
+        }
+
+        h1 {
+            margin: 0 0 1.5rem 0;
+            font-size: 2.75rem;
+            font-weight: 700;
+            line-height: 1.2;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+        }
+
+        .lead-text {
+            font-size: 1.25rem;
+            margin-bottom: 2rem;
+            line-height: 1.6;
+            opacity: 0.95;
+            max-width: 600px;
+            margin-left: auto;
+            margin-right: auto;
+            text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5);
+        }
+
+        .cta-button {
+            background-color: var(--primary-accent);
+            color: white;
+            padding: 0.875rem 2rem;
+            border-radius: 2rem;
+            text-decoration: none;
+            font-weight: 600;
+            display: inline-block;
+            transition: all 0.3s ease;
+            border: 2px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .cta-button:hover {
+            background-color: #6366f1;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(99, 102, 241, 0.3);
+        }
+
+        @media (max-width: 768px) {
+            .hero-card, .jumbotron.jtop {
+                padding: 3rem 1.5rem;
+                border-radius: 1rem;
+            }
+            
+            h1 {
+                font-size: 2rem;
+            }
+            
+            .lead-text {
+                font-size: 1.1rem;
+            }
+        }
+
+        @media (max-width: 480px) {
+            h1 {
+                font-size: 1.75rem;
+            }
+            
+            .cta-button {
+                padding: 0.75rem 1.5rem;
+            }
+        }
+    </style>
 </head>
-<script>
-    includeWebjarLibrary("bootstrap", {includeCss: true});
-</script>
 <body>
-<div class="jumbotron jtop">
-    <h1>Welcome to SPU LMS</h1>&nbsp;
-    <p>
-        Welcome to Sardar Patel University Learning Management System. Students will get courses and learning resources here.
-    </p>
-</div>
+    <div class="hero-card jumbotron jtop">
+        <h1>Welcome to SPU Learning Hub</h1>
+        <p class="lead-text">
+            Discover a transformative learning experience with Sardar Patel University's next-generation Learning Management System. Access courses, resources, and collaborative tools designed to empower your educational journey.
+        </p>
+        <a href="/portal/xlogin" class="cta-button">Login Now</a>
+    </div>
 </body>
 </html>
