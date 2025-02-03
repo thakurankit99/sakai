@@ -153,7 +153,7 @@ export class SakaiSearch extends SakaiElement {
           aria-label="${this._i18n.search_placeholder}"
         />
         <button class="btn btn-primary" type="submit" id="sakai-search-button">
-          Search Sakai
+          Search
         </button>
       </form>
       ${this.noResults ? html`
