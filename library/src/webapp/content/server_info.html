@@ -1,132 +1,186 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <title>Welcome to SPU LMS</title>
+    <title>SPU LMS Features</title>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <script src="/library/js/headscripts.js"></script>
     <link rel="stylesheet" href="/library/content/gateway/gateway.scss">
-    <script>
-        includeWebjarLibrary("bootstrap", {includeCss: true});
-    </script>
     <style>
         :root {
-            --primary-accent: #4f46e5;
-            --secondary-accent: #f59e0b;
+            --primary-color: #2c3e50;
+            --secondary-color: #3498db;
+            --accent-color: #e74c3c;
+            --text-dark: #2c3e50;
+            --text-light: #ecf0f1;
         }
 
         body {
-            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
-            margin: 0;
-            padding: 0;
-            min-height: 100vh;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            position: relative;
-            overflow: hidden;
-        }
-
-        .hero-card, .jumbotron.jtop {
-            background: url('https://i.ibb.co/RkhStppJ/2022-06-17.webp') center/cover;
-            color: white;
-            padding: 4rem 2rem;
-            text-align: center;
-            border-radius: 1.5rem;
-            margin: 1rem;
-            max-width: 800px;
-            backdrop-filter: blur(70px);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37);
-            position: relative;
-        }
-        
-        .hero-card::before, .jumbotron.jtop::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0, 0, 0, 0.5);
-            border-radius: 1.5rem;
-        }
-
-        .hero-card *, .jumbotron.jtop * {
-            position: relative;
-            z-index: 1;
-        }
-
-        h1 {
-            margin: 0 0 1.5rem 0;
-            font-size: 2.75rem;
-            font-weight: 700;
-            line-height: 1.2;
-            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
-        }
-
-        .lead-text {
-            font-size: 1.25rem;
-            margin-bottom: 2rem;
+            font-family: 'Segoe UI', system-ui, sans-serif;
             line-height: 1.6;
-            opacity: 0.95;
-            max-width: 600px;
-            margin-left: auto;
-            margin-right: auto;
-            text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5);
+            background: #f8f9fa;
         }
 
-        .cta-button {
-            background-color: var(--primary-accent);
-            color: white;
-            padding: 0.875rem 2rem;
-            border-radius: 2rem;
-            text-decoration: none;
-            font-weight: 600;
-            display: inline-block;
-            transition: all 0.3s ease;
-            border: 2px solid rgba(255, 255, 255, 0.2);
+        .features-container {
+            max-width: 1200px;
+            margin: 2rem auto;
+            padding: 0 1rem;
         }
 
-        .cta-button:hover {
-            background-color: #6366f1;
-            transform: translateY(-2px);
-            box-shadow: 0 5px 15px rgba(99, 102, 241, 0.3);
+        .hero-section {
+            text-align: center;
+            padding: 4rem 1rem;
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            color: var(--text-light);
+            border-radius: 1rem;
+            margin-bottom: 2rem;
         }
 
-        @media (max-width: 768px) {
-            .hero-card, .jumbotron.jtop {
-                padding: 3rem 1.5rem;
-                border-radius: 1rem;
+        .feature-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 1.5rem;
+            padding: 1rem;
+        }
+
+        .feature-card {
+            background: white;
+            padding: 2rem;
+            border-radius: 1rem;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            transition: transform 0.3s ease;
+        }
+
+        .feature-card:hover {
+            transform: translateY(-5px);
+        }
+
+        .feature-icon {
+            font-size: 2.5rem;
+            margin-bottom: 1rem;
+            color: var(--secondary-color);
+        }
+
+        .feature-title {
+            color: var(--primary-color);
+            margin-bottom: 1rem;
+            font-size: 1.25rem;
+        }
+
+        .feature-description {
+            color: #666;
+            font-size: 0.95rem;
+        }
+
+        @media (min-width: 768px) {
+            .feature-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        @media (max-width: 767px) {
+            .feature-grid {
+                grid-template-columns: 1fr;
             }
             
-            h1 {
-                font-size: 2rem;
-            }
-            
-            .lead-text {
-                font-size: 1.1rem;
-            }
-        }
-
-        @media (max-width: 480px) {
-            h1 {
-                font-size: 1.75rem;
-            }
-            
-            .cta-button {
-                padding: 0.75rem 1.5rem;
+            .hero-section {
+                padding: 2rem 1rem;
             }
         }
     </style>
 </head>
 <body>
-    <div class="hero-card jumbotron jtop">
-        <h1>Welcome to SPU Mandi LMS</h1>
-        <p class="lead-text">
-            Discover a transformative learning experience with Sardar Patel University's next-generation Learning Management System. Access courses, resources, and collaborative tools designed to empower your educational journey.
-        </p>
-        <a href="/portal/xlogin" class="cta-button">Login Now</a>
+    <div class="hero-section">
+        <h1>Welcome to SPU Learning Management System</h1>
+        <p>Empowering education through innovative digital learning solutions</p>
     </div>
+
+    <div class="features-container">
+        <div class="feature-grid">
+            <!-- Feature 1 -->
+            <div class="feature-card">
+                <div class="feature-icon">📚</div>
+                <h3 class="feature-title">Course Management</h3>
+                <p class="feature-description">
+                    Create, organize, and deliver courses with multimedia content, 
+                    structured modules, and progress tracking.
+                </p>
+            </div>
+
+            <!-- Feature 2 -->
+            <div class="feature-card">
+                <div class="feature-icon">📝</div>
+                <h3 class="feature-title">Assignment System</h3>
+                <p class="feature-description">
+                    Submit assignments online with automated deadline tracking, 
+                    plagiarism checking, and feedback system.
+                </p>
+            </div>
+
+            <!-- Feature 3 -->
+            <div class="feature-card">
+                <div class="feature-icon">💬</div>
+                <h3 class="feature-title">Collaboration Tools</h3>
+                <p class="feature-description">
+                    Discussion forums, group workspaces, and real-time 
+                    chat for effective peer-to-peer interaction.
+                </p>
+            </div>
+
+            <!-- Feature 4 -->
+            <div class="feature-card">
+                <div class="feature-icon">📊</div>
+                <h3 class="feature-title">Grade Center</h3>
+                <p class="feature-description">
+                    Comprehensive grading system with automated calculations, 
+                    performance analytics, and report generation.
+                </p>
+            </div>
+
+            <!-- Feature 5 -->
+            <div class="feature-card">
+                <div class="feature-icon">📅</div>
+                <h3 class="feature-title">Academic Calendar</h3>
+                <p class="feature-description">
+                    Integrated calendar system with deadline reminders, 
+                    event scheduling, and mobile sync capabilities.
+                </p>
+            </div>
+
+            <!-- Feature 6 -->
+            <div class="feature-card">
+                <div class="feature-icon">📱</div>
+                <h3 class="feature-title">Mobile Learning</h3>
+                <p class="feature-description">
+                    Fully responsive design with dedicated mobile app features 
+                    for learning on-the-go.
+                </p>
+            </div>
+
+            <!-- Feature 7 -->
+            <div class="feature-card">
+                <div class="feature-icon">🔒</div>
+                <h3 class="feature-title">Secure Access</h3>
+                <p class="feature-description">
+                    Enterprise-grade security with role-based access control 
+                    and data encryption.
+                </p>
+            </div>
+
+            <!-- Feature 8 -->
+            <div class="feature-card">
+                <div class="feature-icon">📈</div>
+                <h3 class="feature-title">Analytics Dashboard</h3>
+                <p class="feature-description">
+                    Detailed learning analytics with visual reports on student 
+                    engagement and performance metrics.
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        includeWebjarLibrary("bootstrap", {includeCss: true});
+    </script>
 </body>
 </html>

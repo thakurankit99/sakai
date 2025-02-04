@@ -1,202 +1,165 @@
 <!DOCTYPE html>
 <html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en">
+
 <head>
-    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
-    <title>SPU LMS Features</title>
-    <script language="JavaScript" type="text/JavaScript">
-    <!--[Same JavaScript from original]-->
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<title>My Workspace Dashboard</title>
+	<script language="JavaScript" type="text/JavaScript">
+    <!--
+        var i, a, href
+        for(i=0; (a = top.document.getElementsByTagName("link")[i]); i++) 
+        {
+            if(a.getAttribute("rel").indexOf("style") != -1)
+            {
+                if(a.getAttribute("href").indexOf("portal.css") != -1)
+                {
+                    //normal - top is portal
+                    document.write ('<link href=\"');
+                    var lastSlash = a.getAttribute("href").lastIndexOf("/");
+                    document.write (a.getAttribute("href").substring(0,lastSlash+1));
+                    document.write ('tool.css\" type=\"text/css\" rel=\"stylesheet\" media=\"all\" />');
+                    document.write ('<link href=\"');
+                    document.write (a.getAttribute("href").substring(0,a.getAttribute("href").lastIndexOf("/", lastSlash-1)+1));
+                    document.write ('tool_base.css\" type=\"text/css\" rel=\"stylesheet\" media=\"all\" />');
+                }
+                else
+                {
+                    //not normal - top is something else - use it's stylesheets
+                    document.write ('<link href=\"');
+                    document.write (a.getAttribute("href"));
+                    document.write ('" type=\"text/css\" rel=\"stylesheet\" media=\"all\" />');
+                }
+            }
+        }
+    // -->
     </script>
-    <script type="text/javascript" language="JavaScript" src="/library/js/sakai-iframe-copy-classes.js"></script>
-    <style>
-        :root {
-            --lms-primary: #2563eb;
-            --lms-secondary: #4f46e5;
-            --feature-purple: #6366f1;
-            --feature-teal: #14b8a6;
-            --text-dark: #1e293b;
-        }
+	<script type="text/javascript" language="JavaScript" src="/library/js/sakai-iframe-copy-classes.js"></script>
+	<style>
+		.portletBody {
+			max-width: 1200px;
+			margin: 2rem auto;
+			padding: 2rem;
+			background: white;
+			border-radius: 1rem;
+			box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+		}
 
-        body {
-            background: #f8fafc !important;
-            font-family: 'Inter', system-ui, sans-serif;
-            line-height: 1.6;
-        }
+		.workspace-header {
+			text-align: center;
+			margin-bottom: 2.5rem;
+			padding-bottom: 1.5rem;
+			border-bottom: 3px solid var(--sakai-color-gray--darker-2);
+		}
 
-        .portletBody {
-            max-width: 1200px;
-            margin: 2rem auto;
-            padding: 2rem;
-            background: white;
-            border-radius: 1rem;
-        }
+		h3 {
+			color: var(--sakai-color-gray--darker-2) !important;
+			font-size: 2rem;
+			margin-bottom: 1rem;
+		}
 
-        .hero-section {
-            text-align: center;
-            margin-bottom: 3rem;
-            padding: 2rem;
-            background: linear-gradient(135deg, var(--lms-primary), var(--lms-secondary));
-            border-radius: 1rem;
-            color: white;
-        }
 
-        .hero-title {
-            font-size: 2.5rem;
-            margin-bottom: 1rem;
-            font-weight: 700;
-        }
 
-        .hero-subtitle {
-            font-size: 1.2rem;
-            opacity: 0.9;
-            max-width: 800px;
-            margin: 0 auto;
-        }
+		.feature-grid {
+			display: grid;
+			grid-template-columns: repeat(2, 1fr);
+			/* 2 columns for mobile */
+			gap: 1.5rem;
+			margin-top: 2rem;
+		}
 
-        .features-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-            gap: 2rem;
-            margin: 3rem 0;
-        }
+		/* For larger screens (desktop), make it a single row */
+		@media (min-width: 1024px) {
+			.feature-grid {
+				grid-template-columns: repeat(4, 1fr);
+				/* 4 columns in a row for desktop */
+			}
+		}
 
-        .feature-card {
-            padding: 2rem;
-            border-radius: 1rem;
-            background: white;
-            border: 1px solid #e2e8f0;
-            transition: transform 0.2s ease, box-shadow 0.2s ease;
-        }
 
-        .feature-card:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
-        }
+		.feature-card {
+			padding: 1.5rem;
+			border-radius: 0.75rem;
+			background: #f8f9fa;
+			transition: transform 0.2s ease;
+		}
 
-        .feature-icon {
-            font-size: 2.5rem;
-            margin-bottom: 1rem;
-        }
+		.feature-card:hover {
+			transform: translateY(-3px);
+		}
 
-        .feature-title {
-            font-size: 1.25rem;
-            margin-bottom: 1rem;
-            color: var(--text-dark);
-            font-weight: 600;
-        }
+		.feature-icon {
+			font-size: 1.5rem;
+			margin-bottom: 1rem;
+			color: var(--sakai-color-blue);
+		}
 
-        .feature-description {
-            color: #64748b;
-            margin-bottom: 1.5rem;
-        }
+		.feature-title {
+			font-size: 1.1rem;
+			margin-bottom: 0.5rem;
+			color: var(--sakai-color-gray--darker-2);
+		}
 
-        .feature-pill {
-            display: inline-block;
-            padding: 0.25rem 0.75rem;
-            border-radius: 2rem;
-            font-size: 0.85rem;
-            font-weight: 500;
-            background: rgba(99, 102, 241, 0.1);
-            color: var(--feature-purple);
-        }
+		.feature-description {
+			color: var(--sakai-color-gray--darker-1);
+			font-size: 0.95rem;
+		}
 
-        .category-section {
-            margin: 4rem 0 2rem;
-            border-bottom: 2px solid #e2e8f0;
-            padding-bottom: 1rem;
-            color: var(--text-dark);
-        }
+		@media (max-width: 768px) {
+			.portletBody {
+				padding: 1.5rem;
+				margin: 1rem;
+			}
 
-        @media (max-width: 768px) {
-            .portletBody {
-                padding: 1.5rem;
-                margin: 1rem;
-            }
-            
-            .hero-title {
-                font-size: 2rem;
-            }
-            
-            .features-grid {
-                grid-template-columns: 1fr;
-            }
-        }
-    </style>
+			h3 {
+				font-size: 1.5rem;
+			}
+		}
+	</style>
 </head>
+
 <body style="background-color:transparent">
-    <div class="portletBody">
-        <div class="hero-section">
-            <h1 class="hero-title">SPU Learning Management System</h1>
-            <p class="hero-subtitle">
-                Empower your educational journey with our comprehensive suite of learning tools 
-                and resources designed for modern education.
-            </p>
-        </div>
+	<div class="portletBody">
+		<div class="workspace-header">
+			<h3>Welcome to Your Personal Workspace</h3>
+			<p class="lead-text">
+				Your central hub for managing academic resources, schedules, and personal learning materials.
+			</p>
+		</div>
 
-        <h3 class="category-section">Core Learning Features</h3>
-        <div class="features-grid">
-            <div class="feature-card">
-                <div class="feature-icon">📚</div>
-                <span class="feature-pill">Course Management</span>
-                <h4 class="feature-title">Interactive Course Modules</h4>
-                <p class="feature-description">
-                    Structured learning paths with multimedia content, quizzes, 
-                    and progress tracking.
-                </p>
-            </div>
+		<div class="feature-grid">
+			<div class="feature-card">
+				<div class="feature-icon">📁</div>
+				<h4 class="feature-title">Personal Storage</h4>
+				<p class="feature-description">
+					Securely store and organize your documents, notes, and learning resources.
+				</p>
+			</div>
 
-            <div class="feature-card">
-                <div class="feature-icon">💬</div>
-                <span class="feature-pill">Collaboration</span>
-                <h4 class="feature-title">Collaborative Learning Spaces</h4>
-                <p class="feature-description">
-                    Real-time discussion forums, group workspaces, 
-                    and peer review systems.
-                </p>
-            </div>
+			<div class="feature-card">
+				<div class="feature-icon">📅</div>
+				<h4 class="feature-title">Schedule Management</h4>
+				<p class="feature-description">
+					Manage your academic calendar, deadlines, and personal reminders.
+				</p>
+			</div>
 
-            <div class="feature-card">
-                <div class="feature-icon">📈</div>
-                <span class="feature-pill">Analytics</span>
-                <h4 class="feature-title">Performance Tracking</h4>
-                <p class="feature-description">
-                    Detailed grade books, competency matrices, 
-                    and learning analytics dashboards.
-                </p>
-            </div>
-        </div>
+			<div class="feature-card">
+				<div class="feature-icon">🏗️</div>
+				<h4 class="feature-title">Site Creation</h4>
+				<p class="feature-description">
+					Create and customize new workspaces for projects or study groups.
+				</p>
+			</div>
 
-        <h3 class="category-section">Advanced Tools</h3>
-        <div class="features-grid">
-            <div class="feature-card">
-                <div class="feature-icon">🕒</div>
-                <span class="feature-pill">Scheduling</span>
-                <h4 class="feature-title">Smart Calendar System</h4>
-                <p class="feature-description">
-                    Integrated academic calendar with deadline reminders 
-                    and sync capabilities.
-                </p>
-            </div>
-
-            <div class="feature-card">
-                <div class="feature-icon">📱</div>
-                <span class="feature-pill">Accessibility</span>
-                <h4 class="feature-title">Mobile-First Design</h4>
-                <p class="feature-description">
-                    Fully responsive interface optimized for all devices 
-                    and screen readers.
-                </p>
-            </div>
-
-            <div class="feature-card">
-                <div class="feature-icon">🔒</div>
-                <span class="feature-pill">Security</span>
-                <h4 class="feature-title">Enterprise-Grade Protection</h4>
-                <p class="feature-description">
-                    Secure content delivery with role-based access 
-                    and data encryption.
-                </p>
-            </div>
-        </div>
-    </div>
+			<div class="feature-card">
+				<div class="feature-icon">📚</div>
+				<h4 class="feature-title">Resource Library</h4>
+				<p class="feature-description">
+					Access course materials and learning resources anytime, anywhere.
+				</p>
+			</div>
+		</div>
+	</div>
 </body>
+
 </html>
