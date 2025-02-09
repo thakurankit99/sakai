@@ -96,10 +96,10 @@ jobs:
           cp sakaiprops/server.xml ./
           cp sakaiprops/mysql-connector-j-8.4.0.tar.gz ./
 
-      - name: Build Docker Image
+      - name: Build Docker Image (Quiet Mode)
         run: |
-          echo "✅ Building Docker image..."
-          docker build --no-cache -t ankitosm/sakai:${{ github.event.inputs.branch_name }} .
+          echo "✅ Building Docker image (Quiet Mode)..."
+          docker build -q --no-cache -t ankitosm/sakai:${{ github.event.inputs.branch_name }} .
 
       - name: Log in to Docker Hub
         run: echo "${{ secrets.DOCKER_HUB_PASSWORD }}" | docker login -u "${{ secrets.DOCKER_HUB_USERNAME }}" --password-stdin
