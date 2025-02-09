@@ -88,10 +88,18 @@ jobs:
           token: ${{ secrets.SAKAIPROPS_PAT }}
           path: sakaiprops
 
+      - name: Prepare sakaiprops Files for Docker Build
+        run: |
+          cp sakaiprops/apache-tomcat-9.0.69.tar.gz ./
+          cp sakaiprops/sakai.properties ./
+          cp sakaiprops/context.xml ./
+          cp sakaiprops/server.xml ./
+          cp sakaiprops/mysql-connector-j-8.4.0.tar.gz ./
+
       - name: Build Docker Image
         run: |
           echo "✅ Building Docker image..."
-          docker build -q -t ankitosm/sakai:${{ github.event.inputs.branch_name }} .
+          docker build --no-cache -t ankitosm/sakai:${{ github.event.inputs.branch_name }} .
 
       - name: Log in to Docker Hub
         run: echo "${{ secrets.DOCKER_HUB_PASSWORD }}" | docker login -u "${{ secrets.DOCKER_HUB_USERNAME }}" --password-stdin
@@ -131,6 +139,10 @@ jobs:
             cp ~/sakaiprops/server.xml ~/sakai/server.xml
             cp ~/sakaiprops/mysql-connector-j-8.4.0.tar.gz ~/sakai/
 
+            echo "🔄 Extracting MySQL Connector..."
+            tar -xvzf ~/sakai/mysql-connector-j-8.4.0.tar.gz -C ~/sakai/
+            find ~/sakai/ -name "*.jar" -exec mv {} ~/sakai/ \;
+
             echo "🚀 Starting new Sakai container..."
             docker run -d --name sakai-app \
               --network=sakai_default \
@@ -138,6 +150,7 @@ jobs:
               -v ~/sakai/sakai.properties:/opt/tomcat/sakai/sakai.properties \
               -v ~/sakai/context.xml:/opt/tomcat/conf/context.xml \
               -v ~/sakai/server.xml:/opt/tomcat/conf/server.xml \
+              -v ~/sakai/mysql-connector.jar:/opt/tomcat/lib/mysql-connector.jar \
               ankitosm/sakai:${{ github.event.inputs.branch_name }}
 
             echo "✅ Deployment complete! Sakai should be running on http://${{ secrets.VPS_HOST }}:8080"
