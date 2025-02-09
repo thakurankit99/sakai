@@ -128,6 +128,7 @@ jobs:
             git clone https://${{ secrets.SAKAIPROPS_PAT }}@github.com/thakurankit99/sakaiprops.git ~/sakaiprops
             cp ~/sakaiprops/sakai.properties ~/sakai/sakai.properties
             cp ~/sakaiprops/context.xml ~/sakai/context.xml
+            cp ~/sakaiprops/server.xml ~/sakai/server.xml
             cp ~/sakaiprops/mysql-connector-j-8.4.0.tar.gz ~/sakai/
 
             echo "🚀 Starting new Sakai container..."
@@ -135,6 +136,8 @@ jobs:
               --network=sakai_default \
               -p 8080:8080 \
               -v ~/sakai/sakai.properties:/opt/tomcat/sakai/sakai.properties \
+              -v ~/sakai/context.xml:/opt/tomcat/conf/context.xml \
+              -v ~/sakai/server.xml:/opt/tomcat/conf/server.xml \
               ankitosm/sakai:${{ github.event.inputs.branch_name }}
 
             echo "✅ Deployment complete! Sakai should be running on http://${{ secrets.VPS_HOST }}:8080"
