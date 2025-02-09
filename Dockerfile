@@ -22,17 +22,21 @@ RUN sed -i 's|<Context>|<Context><JarScanner><JarScanFilter defaultPluggabilityS
 ENV CATALINA_HOME=/opt/tomcat
 ENV PATH=$CATALINA_HOME/bin:$PATH
 
-# Create the `sakai` directory inside Tomcat
-RUN mkdir -p /opt/tomcat/sakai
+# Create necessary directories
+RUN mkdir -p /opt/tomcat/sakai /opt/tomcat/webapps
 
-# Copy Sakai WAR file from GitHub build
-COPY sakai.war /opt/tomcat/webapps/sakai.war
+# Copy all Sakai WAR files into Tomcat's webapps folder
+COPY sakai-webapps/*.war /opt/tomcat/webapps/
 
-# Copy sakai.properties after the WAR file is in place
+# Copy sakai.properties after the WAR files are in place
 COPY sakai.properties /opt/tomcat/sakai/sakai.properties
 
 # Expose Tomcat's HTTP port
 EXPOSE 8080
 
-# Start Tomcat in the foreground (to prevent container exit)
-CMD ["catalina.sh", "run"]
+# Healthcheck to verify Tomcat is running
+HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
+    CMD curl -f http://localhost:8080 || exit 1
+
+# Start Tomcat in the foreground (using exec to ensure proper signal handling)
+CMD ["sh", "-c", "catalina.sh run"]
