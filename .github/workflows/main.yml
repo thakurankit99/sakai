@@ -12,70 +12,83 @@ jobs:
   build:
     runs-on: ubuntu-20.04
     steps:
-      - name: Checkout Sakai Repository
-        uses: actions/checkout@v4
+      - name: Checkout Sakai Repository (Dynamic Branch)
+        uses: actions/checkout@v2
         with:
           fetch-depth: 0
           ref: ${{ github.event.inputs.branch_name }}
 
-      - name: Set Up JDK 11
-        uses: actions/setup-java@v4
-        with:
-          distribution: "temurin"
-          java-version: "11"
-          architecture: x64
+      - name: Verify Parent POM Exists
+        run: |
+          if [ ! -f master/pom.xml ]; then
+            echo "❌ master/pom.xml not found! Ensure it exists in the selected branch."
+            exit 1
+          else
+            echo "✅ master/pom.xml found."
+          fi
+
+      - name: Install Required Dependencies (Java 11, Git, Maven 3.8.4, Tomcat 9.0.69)
+        run: |
+          echo "🔄 Installing Java 11 (Temurin)..."
+          wget https://github.com/adoptium/temurin11-binaries/releases/download/jdk-11.0.16.1%2B1/OpenJDK11U-jdk_x64_linux_hotspot_11.0.16.1_1.tar.gz -O /tmp/temurin11.tar.gz
+          sudo tar -xvzf /tmp/temurin11.tar.gz -C /opt
+          sudo mv /opt/jdk-11.0.16.1+1 /opt/temurin-11
+          echo "export JAVA_HOME=/opt/temurin-11" >> ~/.bashrc
+          echo "export PATH=$JAVA_HOME/bin:$PATH" >> ~/.bashrc
+          source ~/.bashrc
+          java -version
+
+          echo "🔄 Installing Maven 3.8.4..."
+          wget https://archive.apache.org/dist/maven/maven-3/3.8.4/binaries/apache-maven-3.8.4-bin.tar.gz
+          sudo tar -xvzf apache-maven-3.8.4-bin.tar.gz -C /opt
+          sudo mv /opt/apache-maven-3.8.4 /opt/maven
+          echo "export MAVEN_HOME=/opt/maven" >> ~/.bashrc
+          echo "export PATH=$MAVEN_HOME/bin:$PATH" >> ~/.bashrc
+          source ~/.bashrc
+          mvn -version
+
+          echo "🔄 Installing Tomcat 9.0.69..."
+          wget https://archive.apache.org/dist/tomcat/tomcat-9/v9.0.69/bin/apache-tomcat-9.0.69.tar.gz -O /tmp/tomcat.tar.gz
+          sudo tar -xvzf /tmp/tomcat.tar.gz -C /opt
+          sudo mv /opt/apache-tomcat-9.0.69 /opt/tomcat
+          echo "export CATALINA_HOME=/opt/tomcat" >> ~/.bashrc
+          source ~/.bashrc
 
       - name: Cache Maven Dependencies
-        uses: actions/cache@v4
+        uses: actions/cache@v2
         with:
           path: ~/.m2/repository
           key: ${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
           restore-keys: |
             ${{ runner.os }}-maven-
 
-      - name: Build Sakai (Quiet Mode)
+      - name: Build Parent POM First
         run: |
-          echo "🔧 Building Sakai in quiet mode..."
-          mvn -q clean install -Dmaven.test.skip=true -U | tee build.log | grep -E "ERROR|WARN|BUILD SUCCESS|BUILD FAILURE"
+          mvn clean install -N
+          mvn clean install -pl master -am -DskipTests
 
-      - name: Collect All WAR Files
-        run: |
-          echo "🔍 Collecting all .war files..."
-          mkdir -p sakai-webapps
-          find . -name "*.war" -exec cp {} sakai-webapps/ \;
-          ls -lah sakai-webapps | tee collected_wars.log
-
-      - name: Upload WAR Files as Artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: sakai-wars
-          path: sakai-webapps/
-          compression-level: 0
-
-  docker:
-    needs: build
-    runs-on: ubuntu-20.04
-    steps:
-      - name: Checkout Repository (For Dockerfile)
-        uses: actions/checkout@v4
-
-      - name: Download All WAR Files
-        uses: actions/download-artifact@v4
-        with:
-          name: sakai-wars
-          path: sakai-webapps/
+      - name: Build Sakai 23 with Maven
+        env:
+          MAVEN_OPTS: -Djava.awt.headless=true -Dmaven.test.skip=true
+        run: mvn clean install -Dmaven.test.skip=true
 
       - name: Checkout `sakaiprops` Repository (Fetch `sakai.properties`)
-        uses: actions/checkout@v4
+        uses: actions/checkout@v2
         with:
           repository: thakurankit99/sakaiprops
           ref: main
           token: ${{ secrets.SAKAIPROPS_PAT }}
 
-      - name: Build Docker Image
+      - name: Move `sakai.properties` to Build Directory
+        run: |
+          echo "✅ Moving sakai.properties to config directory..."
+          mkdir -p config
+          mv sakai.properties config/sakai.properties
+
+      - name: Build Docker Image with `sakai.properties`
         run: |
           echo "✅ Building Docker image..."
-          docker build -q -t ankitosm/sakai:${{ github.event.inputs.branch_name }} .
+          docker build -t ankitosm/sakai:${{ github.event.inputs.branch_name }} .
 
       - name: Log in to Docker Hub
         run: echo "${{ secrets.DOCKER_HUB_PASSWORD }}" | docker login -u "${{ secrets.DOCKER_HUB_USERNAME }}" --password-stdin
@@ -86,7 +99,7 @@ jobs:
           docker push ankitosm/sakai:${{ github.event.inputs.branch_name }}
 
   deploy:
-    needs: docker
+    needs: build
     runs-on: ubuntu-20.04
     steps:
       - name: Deploy to VPS
@@ -108,7 +121,13 @@ jobs:
             echo "🗑 Removing old Sakai container..."
             docker rm sakai-app || true
 
-            echo "🚀 Running Sakai container..."
-            docker run -d --name sakai-app --network=sakai_default -p 8080:8080 ankitosm/sakai:${{ github.event.inputs.branch_name }}
+            echo "🔄 Cloning `sakaiprops` repository..."
+            git clone https://github.com/thakurankit99/sakaiprops.git ~/sakaiprops
+            mv ~/sakaiprops/sakai.properties ~/sakai.properties
+
+            echo "🚀 Starting new Sakai container..."
+            docker run -d --name sakai-app --network=sakai_default -p 8080:8080 \
+              -v ~/sakai.properties:/opt/tomcat/sakai/sakai.properties \
+              ankitosm/sakai:${{ github.event.inputs.branch_name }}
             
             echo "✅ Deployment complete! Sakai should be running on http://${{ secrets.VPS_HOST }}:8080"
