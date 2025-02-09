@@ -100,9 +100,13 @@ jobs:
           token: ${{ secrets.SAKAIPROPS_PAT }}
           path: sakaiprops
 
-      - name: Move sakai.properties
+      - name: Prepare Configuration Files
         run: |
-          mv sakaiprops/sakai.properties ./sakai.properties
+          mkdir -p config
+          cp sakaiprops/apache-tomcat-9.0.69.tar.gz ./
+          cp sakaiprops/mysql-connector-j-8.4.0.tar.gz ./
+          cp sakaiprops/context.xml ./config/
+          cp sakaiprops/sakai.properties ./config/
 
       - name: Build Docker Image
         run: |
@@ -138,17 +142,16 @@ jobs:
             docker stop sakai-app || true
             docker rm sakai-app || true
             
-            echo "🔄 Setting up sakaiprops..."
-            rm -rf ~/sakaiprops || true
-            mkdir -p ~/sakai
-            git clone https://${{ secrets.SAKAIPROPS_PAT }}@github.com/thakurankit99/sakaiprops.git ~/sakaiprops
-            cp ~/sakaiprops/sakai.properties ~/sakai/sakai.properties
+            echo "🔄 Setting up configuration directory..."
+            mkdir -p ~/sakai/tomcat/lib
+            mkdir -p ~/sakai/tomcat/conf
             
             echo "🚀 Starting new Sakai container..."
             docker run -d --name sakai-app \
               --network=sakai_default \
               -p 8080:8080 \
-              -v ~/sakai/sakai.properties:/opt/tomcat/sakai/sakai.properties \
+              -v ~/sakai/tomcat/lib:/opt/tomcat/lib \
+              -v ~/sakai/tomcat/conf:/opt/tomcat/conf \
               ankitosm/sakai:${{ github.event.inputs.branch_name }}
             
             echo "✅ Deployment complete! Sakai should be running on http://${{ secrets.VPS_HOST }}:8080"
