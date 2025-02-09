@@ -42,18 +42,37 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-maven-
 
-      - name: Build Sakai with Maven
+      - name: Build Master Project (First Step)
         run: |
-          mvn -q clean install -Dmaven.test.skip=true
+          cd master
+          mvn clean install -Dmaven.test.skip=true
+
+      - name: Build Root Project (Final Step)
+        run: |
+          mvn clean install sakai:deploy \
+            -Dmaven.tomcat.home=$CATALINA_HOME \
+            -Dsakai.home=$CATALINA_HOME/sakai \
+            -Djava.net.preferIPv4Stack=true \
+            -Dmaven.test.skip=true \
+            -Dmaven.cleanup=false
 
       - name: Debug Build Output
         run: |
           echo "🔍 Listing all `.war` files..."
-          find . -name "*.war"
+          find . -name "*.war" -exec ls -lh {} \;
+
+      - name: Verify Build Success
+        run: |
+          if ! find . -name "sakai.war" | grep -q "."; then
+            echo "❌ Build failed! No sakai.war found."
+            exit 1
+          else
+            echo "✅ Build succeeded, sakai.war found."
+          fi
 
       - name: Copy `sakai.war` for Artifact Upload
         run: |
-          cp portal/target/sakai.war ./sakai.war || cp web/target/sakai.war ./sakai.war
+          find . -name "sakai.war" -exec cp {} ./sakai.war \;
 
       - name: Upload `sakai.war` as an Artifact
         uses: actions/upload-artifact@v4
