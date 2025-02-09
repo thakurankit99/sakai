@@ -23,13 +23,23 @@ ENV CATALINA_HOME=/opt/tomcat
 ENV PATH=$CATALINA_HOME/bin:$PATH
 
 # Create necessary directories
-RUN mkdir -p /opt/tomcat/sakai /opt/tomcat/webapps
+RUN mkdir -p /opt/tomcat/sakai /opt/tomcat/webapps /opt/tomcat/lib /opt/tomcat/mysql-connector
 
 # Copy all Sakai WAR files into Tomcat's webapps folder
 COPY sakai-webapps/*.war /opt/tomcat/webapps/
 
+# Copy context.xml to Tomcat configuration directory
+COPY sakaiprops/context.xml /opt/tomcat/conf/context.xml
+
+# Copy MySQL Connector TAR file and extract it into Tomcat lib
+COPY sakaiprops/mysql-connector-j-8.4.0.tar.gz /opt/tomcat/mysql-connector/
+
+RUN tar -xvzf /opt/tomcat/mysql-connector/mysql-connector-j-8.4.0.tar.gz -C /opt/tomcat/mysql-connector/ \
+    && find /opt/tomcat/mysql-connector/ -name "*.jar" -exec mv {} /opt/tomcat/lib/ \; \
+    && rm -rf /opt/tomcat/mysql-connector/  # Clean up extracted folder
+
 # Copy sakai.properties after the WAR files are in place
-COPY sakai.properties /opt/tomcat/sakai/sakai.properties
+COPY sakaiprops/sakai.properties /opt/tomcat/sakai/sakai.properties
 
 # Expose Tomcat's HTTP port
 EXPOSE 8080
