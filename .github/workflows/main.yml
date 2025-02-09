@@ -18,13 +18,13 @@ jobs:
           fetch-depth: 0
           ref: 23.x  # Ensures we build from 23.x even though the workflow is in main
 
-      - name: Verify Dockerfile Exists
+      - name: Verify Parent POM Exists
         run: |
-          if [ ! -f Dockerfile ]; then
-            echo "❌ Dockerfile not found! Make sure it exists in the 23.x branch."
+          if [ ! -f master/pom.xml ]; then
+            echo "❌ master/pom.xml not found! Make sure it exists in the 23.x branch."
             exit 1
           else
-            echo "✅ Dockerfile found."
+            echo "✅ master/pom.xml found."
           fi
 
       - name: Set Up JDK 11
@@ -40,6 +40,11 @@ jobs:
           key: ${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
           restore-keys: |
             ${{ runner.os }}-maven-
+
+      - name: Build Parent POM First
+        run: |
+          mvn clean install -N
+          mvn clean install -pl master -am -DskipTests
 
       - name: Build Sakai with Maven
         env:
