@@ -65,6 +65,8 @@ jobs:
     steps:
       - name: Checkout Repository (For Dockerfile)
         uses: actions/checkout@v4
+	with:
+          ref: ${{ github.event.inputs.branch_name }}
 
       - name: Download All WAR Files
         uses: actions/download-artifact@v4
