@@ -51,7 +51,7 @@ jobs:
           MAVEN_OPTS: -Djava.awt.headless=true -Dmaven.test.skip=true
         run: mvn clean install -Dmaven.test.skip=true
 
-      - name: Checkout `sakaiprops` Repository (Private Configs)
+      - name: Checkout `sakaiprops` Repository (Fetch `sakai.properties`)
         uses: actions/checkout@v2
         with:
           repository: thakurankit99/sakaiprops
@@ -59,7 +59,10 @@ jobs:
           token: ${{ secrets.SAKAIPROPS_PAT }}
 
       - name: Move `sakai.properties` to Build Directory
-        run: mv sakai.properties ./config/sakai.properties
+        run: |
+          echo "✅ Moving sakai.properties to config directory..."
+          mkdir -p config
+          mv sakai.properties config/sakai.properties
 
       - name: Build Docker Image with `sakai.properties`
         run: |
