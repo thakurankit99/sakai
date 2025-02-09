@@ -73,7 +73,7 @@ jobs:
         with:
           fetch-depth: 1
           ref: ${{ github.event.inputs.branch_name }}
-          path: repo  # Clone into 'repo/' to avoid overwriting
+          path: repo
 
       - name: Ensure Dockerfile Exists & Move to Root
         run: |
@@ -92,15 +92,15 @@ jobs:
           name: sakai-wars
           path: sakai-webapps/
 
-      - name: Checkout `sakaiprops` Repository
+      - name: Checkout sakaiprops Repository
         uses: actions/checkout@v4
         with:
           repository: thakurankit99/sakaiprops
           ref: main
           token: ${{ secrets.SAKAIPROPS_PAT }}
-          path: sakaiprops  # Avoids overwriting other files
+          path: sakaiprops
 
-      - name: Move `sakai.properties`
+      - name: Move sakai.properties
         run: |
           mv sakaiprops/sakai.properties ./sakai.properties
 
@@ -130,23 +130,25 @@ jobs:
           script: |
             echo "🔄 Pulling latest Sakai image..."
             docker pull ankitosm/sakai:${{ github.event.inputs.branch_name }}
-
+            
             echo "🔄 Ensuring Docker network exists..."
             docker network create sakai_default || true
-
+            
             echo "🛑 Stopping existing Sakai container..."
             docker stop sakai-app || true
-            
-            echo "🗑 Removing old Sakai container..."
             docker rm sakai-app || true
-
-            echo "🔄 Cloning sakaiprops repository..."
-            git clone https://github.com/thakurankit99/sakaiprops.git ~/sakaiprops
-            mv ~/sakaiprops/sakai.properties ~/sakai.properties
-
+            
+            echo "🔄 Setting up sakaiprops..."
+            rm -rf ~/sakaiprops || true
+            mkdir -p ~/sakai
+            git clone https://${{ secrets.SAKAIPROPS_PAT }}@github.com/thakurankit99/sakaiprops.git ~/sakaiprops
+            cp ~/sakaiprops/sakai.properties ~/sakai/sakai.properties
+            
             echo "🚀 Starting new Sakai container..."
-            docker run -d --name sakai-app --network=sakai_default -p 8080:8080 \
-              -v ~/sakai.properties:/opt/tomcat/sakai/sakai.properties \
+            docker run -d --name sakai-app \
+              --network=sakai_default \
+              -p 8080:8080 \
+              -v ~/sakai/sakai.properties:/opt/tomcat/sakai/sakai.properties \
               ankitosm/sakai:${{ github.event.inputs.branch_name }}
-
+            
             echo "✅ Deployment complete! Sakai should be running on http://${{ secrets.VPS_HOST }}:8080"
