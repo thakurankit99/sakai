@@ -12,10 +12,20 @@ jobs:
   build:
     runs-on: ubuntu-20.04
     steps:
-      - name: Checkout Repository
+      - name: Checkout Repository (Switch to 23.x)
         uses: actions/checkout@v2
         with:
           fetch-depth: 0
+          ref: 23.x  # Ensures we build from 23.x even though the workflow is in main
+
+      - name: Verify Dockerfile Exists
+        run: |
+          if [ ! -f Dockerfile ]; then
+            echo "❌ Dockerfile not found! Make sure it exists in the 23.x branch."
+            exit 1
+          else
+            echo "✅ Dockerfile found."
+          fi
 
       - name: Set Up JDK 11
         uses: actions/setup-java@v1
@@ -38,6 +48,7 @@ jobs:
 
       - name: Build Docker Image
         run: |
+          echo "✅ Building Docker image..."
           docker build -t ankitosm/skai:latest .
 
       - name: Log in to Docker Hub
@@ -45,6 +56,7 @@ jobs:
 
       - name: Push Docker Image to Docker Hub
         run: |
+          echo "✅ Pushing Docker image..."
           docker push ankitosm/skai:latest
 
   deploy:
