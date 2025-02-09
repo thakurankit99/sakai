@@ -44,7 +44,7 @@ jobs:
 
       - name: Build Sakai Without Deployment
         run: |
-          mvn clean install -Dmaven.test.skip=true
+          mvn -q clean install -Dmaven.test.skip=true
 
       - name: Debug Built Components
         run: |
