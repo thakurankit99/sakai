@@ -73,18 +73,6 @@ jobs:
         with:
           fetch-depth: 1
           ref: ${{ github.event.inputs.branch_name }}
-          path: repo
-
-      - name: Ensure Dockerfile Exists & Move to Root
-        run: |
-          echo "🔍 Checking for Dockerfile..."
-          if [ ! -f repo/Dockerfile ]; then
-            echo "❌ Dockerfile not found in branch '${{ github.event.inputs.branch_name }}'. Ensure it's in the repo root."
-            exit 1
-          else
-            echo "✅ Dockerfile found in '${{ github.event.inputs.branch_name }}'. Moving to root..."
-            mv repo/Dockerfile ./Dockerfile
-          fi
 
       - name: Download All WAR Files
         uses: actions/download-artifact@v4
@@ -99,14 +87,6 @@ jobs:
           ref: main
           token: ${{ secrets.SAKAIPROPS_PAT }}
           path: sakaiprops
-
-      - name: Prepare Configuration Files
-        run: |
-          mkdir -p config
-          cp sakaiprops/apache-tomcat-9.0.69.tar.gz ./
-          cp sakaiprops/mysql-connector-j-8.4.0.tar.gz ./
-          cp sakaiprops/context.xml ./config/
-          cp sakaiprops/sakai.properties ./config/
 
       - name: Build Docker Image
         run: |
@@ -134,24 +114,27 @@ jobs:
           script: |
             echo "🔄 Pulling latest Sakai image..."
             docker pull ankitosm/sakai:${{ github.event.inputs.branch_name }}
-            
+
             echo "🔄 Ensuring Docker network exists..."
             docker network create sakai_default || true
-            
+
             echo "🛑 Stopping existing Sakai container..."
             docker stop sakai-app || true
             docker rm sakai-app || true
-            
-            echo "🔄 Setting up configuration directory..."
-            mkdir -p ~/sakai/tomcat/lib
-            mkdir -p ~/sakai/tomcat/conf
-            
+
+            echo "🔄 Setting up sakaiprops..."
+            rm -rf ~/sakaiprops || true
+            mkdir -p ~/sakai
+            git clone https://${{ secrets.SAKAIPROPS_PAT }}@github.com/thakurankit99/sakaiprops.git ~/sakaiprops
+            cp ~/sakaiprops/sakai.properties ~/sakai/sakai.properties
+            cp ~/sakaiprops/context.xml ~/sakai/context.xml
+            cp ~/sakaiprops/mysql-connector-j-8.4.0.tar.gz ~/sakai/
+
             echo "🚀 Starting new Sakai container..."
             docker run -d --name sakai-app \
               --network=sakai_default \
               -p 8080:8080 \
-              -v ~/sakai/tomcat/lib:/opt/tomcat/lib \
-              -v ~/sakai/tomcat/conf:/opt/tomcat/conf \
+              -v ~/sakai/sakai.properties:/opt/tomcat/sakai/sakai.properties \
               ankitosm/sakai:${{ github.event.inputs.branch_name }}
-            
+
             echo "✅ Deployment complete! Sakai should be running on http://${{ secrets.VPS_HOST }}:8080"
