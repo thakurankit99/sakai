@@ -120,26 +120,26 @@ jobs:
           host: ${{ secrets.VPS_HOST }}
           username: ${{ secrets.VPS_USER }}
           password: ${{ secrets.VPS_PASSWORD }}
-          script: |
-            echo "🔄 Pulling latest Sakai image..."
-            docker pull ankitosm/sakai:${{ github.event.inputs.branch_name }}
+        script: |
+          echo "🔄 Pulling latest Sakai image..."
+          docker pull ankitosm/sakai:${{ github.event.inputs.branch_name }}
 
-            echo "🔄 Ensuring Docker network exists..."
-            docker network create sakai_default || true
+          echo "🔄 Ensuring Docker network exists..."
+          docker network create sakai_default || true
 
-            echo "🛑 Stopping existing Sakai container..."
-            docker stop sakai-app || true
-            
-            echo "🗑 Removing old Sakai container..."
-            docker rm sakai-app || true
+          echo "🛑 Stopping existing Sakai container..."
+          docker stop sakai-app || true
+          
+          echo "🗑 Removing old Sakai container..."
+          docker rm sakai-app || true
 
-            echo "🔄 Cloning `sakaiprops` repository..."
-            git clone https://github.com/thakurankit99/sakaiprops.git ~/sakaiprops
-            mv ~/sakaiprops/sakai.properties ~/sakai.properties
+          echo "🔄 Cloning `sakaiprops` repository..."
+          git clone https://github.com/thakurankit99/sakaiprops.git ~/sakaiprops
+          mv ~/sakaiprops/sakai.properties ~/sakai.properties
 
-            echo "🚀 Starting new Sakai container..."
-            docker run -d --name sakai-app --network=sakai_default -p 8080:8080 \
-              -v ~/sakai.properties:/opt/tomcat/sakai/sakai.properties \
-              ankitosm/sakai:${{ github.event.inputs.branch_name }}
+          echo "🚀 Starting new Sakai container..."
+          docker run -d --name sakai-app --network=sakai_default -p 8080:8080 \
+            -v ~/sakai.properties:/opt/tomcat/sakai/sakai.properties \
+            ankitosm/sakai:${{ github.event.inputs.branch_name }}
 
-            echo "✅ Deployment complete! Sakai should be running on http://${{ secrets.VPS_HOST }}:8080"
+          echo "✅ Deployment complete! Sakai should be running on http://${{ secrets.VPS_HOST }}:8080"
