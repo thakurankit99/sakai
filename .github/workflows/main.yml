@@ -70,6 +70,19 @@ jobs:
     steps:
       - name: Checkout Repository (For Dockerfile)
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.inputs.branch_name }}  # Ensure Dockerfile is taken from 23.x
+
+      - name: Debug: Check for Dockerfile in Root
+        run: |
+          echo "🔍 Checking for Dockerfile..."
+          if [ ! -f Dockerfile ]; then
+            echo "❌ Dockerfile not found in branch '${{ github.event.inputs.branch_name }}'. Ensure it's in the repo root."
+            exit 1
+          else
+            echo "✅ Dockerfile found in '${{ github.event.inputs.branch_name }}'."
+          fi
 
       - name: Download All WAR Files
         uses: actions/download-artifact@v4
