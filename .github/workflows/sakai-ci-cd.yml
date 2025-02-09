@@ -38,14 +38,14 @@ jobs:
 
       - name: Build Docker Image
         run: |
-          docker build -t thakurankit99/sakai:latest .
+          docker build -t ankitosm/skai:latest .
 
       - name: Log in to Docker Hub
         run: echo "${{ secrets.DOCKER_HUB_PASSWORD }}" | docker login -u "${{ secrets.DOCKER_HUB_USERNAME }}" --password-stdin
 
       - name: Push Docker Image to Docker Hub
         run: |
-          docker push thakurankit99/sakai:latest
+          docker push ankitosm/skai:latest
 
   deploy:
     needs: build
@@ -59,7 +59,7 @@ jobs:
           password: ${{ secrets.VPS_PASSWORD }}
           script: |
             echo "🔄 Pulling latest Sakai image..."
-            docker pull thakurankit99/sakai:latest
+            docker pull ankitosm/skai:latest
             
             echo "🔄 Ensuring Docker network exists..."
             docker network create sakai_default || true
@@ -71,6 +71,6 @@ jobs:
             docker rm sakai-app || true
             
             echo "🚀 Starting new Sakai container..."
-            docker run -d --name sakai-app --network=sakai_default -p 8080:8080 thakurankit99/sakai:latest
+            docker run -d --name sakai-app --network=sakai_default -p 8080:8080 ankitosm/skai:latest
             
             echo "✅ Deployment complete! Sakai should be running on http://${{ secrets.VPS_HOST }}:8080"
