@@ -73,15 +73,17 @@ jobs:
         with:
           fetch-depth: 1
           ref: ${{ github.event.inputs.branch_name }}
+          path: repo  # Clone into 'repo/' to avoid overwriting
 
-      - name: Ensure Dockerfile Exists
+      - name: Ensure Dockerfile Exists & Move to Root
         run: |
           echo "🔍 Checking for Dockerfile..."
-          if [ ! -f Dockerfile ]; then
+          if [ ! -f repo/Dockerfile ]; then
             echo "❌ Dockerfile not found in branch '${{ github.event.inputs.branch_name }}'. Ensure it's in the repo root."
             exit 1
           else
-            echo "✅ Dockerfile found in '${{ github.event.inputs.branch_name }}'."
+            echo "✅ Dockerfile found in '${{ github.event.inputs.branch_name }}'. Moving to root..."
+            mv repo/Dockerfile ./Dockerfile
           fi
 
       - name: Download All WAR Files
@@ -96,6 +98,11 @@ jobs:
           repository: thakurankit99/sakaiprops
           ref: main
           token: ${{ secrets.SAKAIPROPS_PAT }}
+          path: sakaiprops  # Avoids overwriting other files
+
+      - name: Move `sakai.properties`
+        run: |
+          mv sakaiprops/sakai.properties ./sakai.properties
 
       - name: Build Docker Image
         run: |
