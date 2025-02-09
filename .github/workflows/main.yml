@@ -49,19 +49,31 @@ jobs:
 
       - name: Build Root Project (Final Step)
         run: |
-          mvn clean install sakai:deploy \
-            -Dmaven.tomcat.home=$CATALINA_HOME \
-            -Dsakai.home=$CATALINA_HOME/sakai \
-            -Djava.net.preferIPv4Stack=true \
-            -Dmaven.test.skip=true \
-            -Dmaven.cleanup=false
+          mvn clean install -Dmaven.test.skip=true
 
       - name: Debug Build Output
         run: |
           echo "🔍 Listing all `.war` files..."
           find . -name "*.war" -exec ls -lh {} \;
 
-      - name: Verify Build Success
+      - name: Verify Component Manager Exists
+        run: |
+          if [ ! -d "components/sakai-component-manager-23-SNAPSHOT/lib" ]; then
+            echo "❌ Missing sakai-component-manager-23-SNAPSHOT/lib"
+            exit 1
+          else
+            echo "✅ Component manager found."
+          fi
+
+      - name: Deploy Sakai WAR
+        run: |
+          mvn sakai:deploy \
+            -Dmaven.tomcat.home=$CATALINA_HOME \
+            -Dsakai.home=$CATALINA_HOME/sakai \
+            -Djava.net.preferIPv4Stack=true \
+            -Dmaven.cleanup=false
+
+      - name: Verify WAR File Exists
         run: |
           if ! find . -name "sakai.war" | grep -q "."; then
             echo "❌ Build failed! No sakai.war found."
