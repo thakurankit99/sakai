@@ -30,6 +30,10 @@ COPY server.xml /opt/tomcat/conf/server.xml
 COPY sakai.properties /opt/tomcat/sakai/sakai.properties
 COPY mysql-connector-j-8.4.0.jar /opt/tomcat/lib/mysql-connector-j-8.4.0.jar
 
+# Copy setenv.sh and make it executable
+COPY setenv.sh /opt/tomcat/bin/setenv.sh
+RUN chmod +x /opt/tomcat/bin/setenv.sh
+
 # Expose Tomcat's HTTP port
 EXPOSE 8080
 
@@ -37,5 +41,5 @@ EXPOSE 8080
 HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
     CMD curl -f http://localhost:8080 || exit 1
 
-# Start Tomcat in the foreground
-CMD ["sh", "-c", "catalina.sh run"]
+# Start Tomcat using startup.sh (Recommended by Sakai)
+CMD ["sh", "-c", "/opt/tomcat/bin/startup.sh && tail -f /opt/tomcat/logs/catalina.out"]
