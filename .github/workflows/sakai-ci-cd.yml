@@ -1,9 +1,12 @@
 name: Sakai CI/CD Pipeline
 
 on:
-  push:
-    branches:
-      - "23.x"
+  workflow_dispatch:
+    inputs:
+      repo_name:
+        description: "Enter the repository name to deploy"
+        required: true
+        default: "thakurankit99/sakai"
 
 jobs:
   build:
@@ -13,7 +16,6 @@ jobs:
         uses: actions/checkout@v2
         with:
           fetch-depth: 0
-          ref: 23.x
 
       - name: Set Up JDK 11
         uses: actions/setup-java@v1
@@ -36,14 +38,14 @@ jobs:
 
       - name: Build Docker Image
         run: |
-          docker build -t thakurankit99/sakai:23.x .
+          docker build -t thakurankit99/sakai:latest .
 
       - name: Log in to Docker Hub
         run: echo "${{ secrets.DOCKER_HUB_PASSWORD }}" | docker login -u "${{ secrets.DOCKER_HUB_USERNAME }}" --password-stdin
 
       - name: Push Docker Image to Docker Hub
         run: |
-          docker push thakurankit99/sakai:23.x
+          docker push thakurankit99/sakai:latest
 
   deploy:
     needs: build
@@ -57,7 +59,7 @@ jobs:
           password: ${{ secrets.VPS_PASSWORD }}
           script: |
             echo "🔄 Pulling latest Sakai image..."
-            docker pull thakurankit99/sakai:23.x
+            docker pull thakurankit99/sakai:latest
             
             echo "🔄 Ensuring Docker network exists..."
             docker network create sakai_default || true
@@ -69,6 +71,6 @@ jobs:
             docker rm sakai-app || true
             
             echo "🚀 Starting new Sakai container..."
-            docker run -d --name sakai-app --network=sakai_default -p 8080:8080 thakurankit99/sakai:23.x
+            docker run -d --name sakai-app --network=sakai_default -p 8080:8080 thakurankit99/sakai:latest
             
             echo "✅ Deployment complete! Sakai should be running on http://${{ secrets.VPS_HOST }}:8080"
