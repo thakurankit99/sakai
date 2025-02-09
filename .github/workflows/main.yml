@@ -12,16 +12,16 @@ jobs:
   build:
     runs-on: ubuntu-20.04
     steps:
-      - name: Checkout Repository (Switch to 23.x)
+      - name: Checkout Sakai Repository (Dynamic Branch)
         uses: actions/checkout@v2
         with:
           fetch-depth: 0
-          ref: 23.x  # Ensures we build from 23.x even though the workflow is in main
+          ref: ${{ github.event.inputs.branch_name }}
 
       - name: Verify Parent POM Exists
         run: |
           if [ ! -f master/pom.xml ]; then
-            echo "❌ master/pom.xml not found! Make sure it exists in the 23.x branch."
+            echo "❌ master/pom.xml not found! Ensure it exists in the selected branch."
             exit 1
           else
             echo "✅ master/pom.xml found."
@@ -51,10 +51,20 @@ jobs:
           MAVEN_OPTS: -Djava.awt.headless=true -Dmaven.test.skip=true
         run: mvn clean install -Dmaven.test.skip=true
 
-      - name: Build Docker Image
+      - name: Checkout `sakaiprops` Repository (Private Configs)
+        uses: actions/checkout@v2
+        with:
+          repository: thakurankit99/sakaiprops
+          ref: main
+          token: ${{ secrets.SAKAIPROPS_PAT }}
+
+      - name: Move `sakai.properties` to Build Directory
+        run: mv sakai.properties ./config/sakai.properties
+
+      - name: Build Docker Image with `sakai.properties`
         run: |
           echo "✅ Building Docker image..."
-          docker build -t ankitosm/skai:latest .
+          docker build -t ankitosm/sakai:${{ github.event.inputs.branch_name }} .
 
       - name: Log in to Docker Hub
         run: echo "${{ secrets.DOCKER_HUB_PASSWORD }}" | docker login -u "${{ secrets.DOCKER_HUB_USERNAME }}" --password-stdin
@@ -62,7 +72,7 @@ jobs:
       - name: Push Docker Image to Docker Hub
         run: |
           echo "✅ Pushing Docker image..."
-          docker push ankitosm/skai:latest
+          docker push ankitosm/sakai:${{ github.event.inputs.branch_name }}
 
   deploy:
     needs: build
@@ -76,7 +86,7 @@ jobs:
           password: ${{ secrets.VPS_PASSWORD }}
           script: |
             echo "🔄 Pulling latest Sakai image..."
-            docker pull ankitosm/skai:latest
+            docker pull ankitosm/sakai:${{ github.event.inputs.branch_name }}
             
             echo "🔄 Ensuring Docker network exists..."
             docker network create sakai_default || true
@@ -86,8 +96,14 @@ jobs:
             
             echo "🗑 Removing old Sakai container..."
             docker rm sakai-app || true
-            
+
+            echo "🔄 Cloning `sakaiprops` repository..."
+            git clone https://github.com/thakurankit99/sakaiprops.git ~/sakaiprops
+            mv ~/sakaiprops/sakai.properties ~/sakai.properties
+
             echo "🚀 Starting new Sakai container..."
-            docker run -d --name sakai-app --network=sakai_default -p 8080:8080 ankitosm/skai:latest
+            docker run -d --name sakai-app --network=sakai_default -p 8080:8080 \
+              -v ~/sakai.properties:/opt/tomcat/sakai/sakai.properties \
+              ankitosm/sakai:${{ github.event.inputs.branch_name }}
             
             echo "✅ Deployment complete! Sakai should be running on http://${{ secrets.VPS_HOST }}:8080"
