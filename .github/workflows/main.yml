@@ -100,6 +100,7 @@ jobs:
           cp sakaiprops/context.xml ./
           cp sakaiprops/server.xml ./
           cp sakaiprops/mysql-connector-j-8.4.0.jar ./
+          cp sakaiprops/setenv.sh ./
 
       - name: Build Docker Image
         run: |
