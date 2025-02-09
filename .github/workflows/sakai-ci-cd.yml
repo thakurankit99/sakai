@@ -1,0 +1,62 @@
+name: Sakai CI/CD Pipeline
+
+on:
+  push:
+    branches:
+      - "23.x"
+
+jobs:
+  build:
+    runs-on: ubuntu-20.04
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+          ref: 23.x
+
+      - name: Set Up JDK 11
+        uses: actions/setup-java@v1
+        with:
+          java-version: 11
+          architecture: x64
+
+      - name: Cache Maven Dependencies
+        uses: actions/cache@v2
+        with:
+          path: ~/.m2/repository
+          key: ${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
+          restore-keys: |
+            ${{ runner.os }}-maven-
+
+      - name: Build Sakai with Maven
+        env:
+          MAVEN_OPTS: -Djava.awt.headless=true -Dmaven.test.skip=true
+        run: mvn clean install -Dmaven.test.skip=true
+
+      - name: Build Docker Image
+        run: |
+          docker build -t thakurankit99/sakai:23.x .
+
+      - name: Log in to Docker Hub
+        run: echo "${{ secrets.DOCKER_HUB_PASSWORD }}" | docker login -u "${{ secrets.DOCKER_HUB_USERNAME }}" --password-stdin
+
+      - name: Push Docker Image to Docker Hub
+        run: |
+          docker push thakurankit99/sakai:23.x
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-20.04
+    steps:
+      - name: Deploy to VPS
+        uses: appleboy/ssh-action@v0.1.6
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          password: ${{ secrets.VPS_PASSWORD }}
+          script: |
+            docker pull thakurankit99/sakai:23.x
+            docker stop sakai-app || true
+            docker rm sakai-app || true
+            docker run -d --name sakai-app --network=sakai_default -p 8080:8080 thakurankit99/sakai:23.x
