@@ -1,4 +1,4 @@
-name: Sakai CI/CD Pipeline
+name: Sakai 23 CI/CD Pipeline
 
 on:
   workflow_dispatch:
@@ -12,44 +12,11 @@ jobs:
   build:
     runs-on: ubuntu-20.04
     steps:
-      - name: Checkout Sakai Repository (Dynamic Branch)
+      - name: Checkout Sakai Repository
         uses: actions/checkout@v2
         with:
           fetch-depth: 0
           ref: ${{ github.event.inputs.branch_name }}
-
-      - name: Verify Parent POM Exists
-        run: |
-          if [ ! -f master/pom.xml ]; then
-            echo "❌ master/pom.xml not found! Ensure it exists in the selected branch."
-            exit 1
-          else
-            echo "✅ master/pom.xml found."
-          fi
-
-      - name: Set Up JDK 11
-        uses: actions/setup-java@v1
-        with:
-          java-version: 11
-          architecture: x64
-
-      - name: Cache Maven Dependencies
-        uses: actions/cache@v2
-        with:
-          path: ~/.m2/repository
-          key: ${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
-          restore-keys: |
-            ${{ runner.os }}-maven-
-
-      - name: Build Parent POM First
-        run: |
-          mvn clean install -N
-          mvn clean install -pl master -am -DskipTests
-
-      - name: Build Sakai with Maven
-        env:
-          MAVEN_OPTS: -Djava.awt.headless=true -Dmaven.test.skip=true
-        run: mvn clean install -Dmaven.test.skip=true
 
       - name: Checkout `sakaiprops` Repository (Fetch `sakai.properties`)
         uses: actions/checkout@v2
@@ -58,13 +25,12 @@ jobs:
           ref: main
           token: ${{ secrets.SAKAIPROPS_PAT }}
 
-      - name: Move `sakai.properties` to Build Directory
+      - name: Move `sakai.properties` Inside Build Directory
         run: |
-          echo "✅ Moving sakai.properties to config directory..."
           mkdir -p config
           mv sakai.properties config/sakai.properties
 
-      - name: Build Docker Image with `sakai.properties`
+      - name: Build Docker Image (Everything Inside)
         run: |
           echo "✅ Building Docker image..."
           docker build -t ankitosm/sakai:${{ github.event.inputs.branch_name }} .
@@ -100,13 +66,7 @@ jobs:
             echo "🗑 Removing old Sakai container..."
             docker rm sakai-app || true
 
-            echo "🔄 Cloning `sakaiprops` repository..."
-            git clone https://github.com/thakurankit99/sakaiprops.git ~/sakaiprops
-            mv ~/sakaiprops/sakai.properties ~/sakai.properties
-
-            echo "🚀 Starting new Sakai container..."
-            docker run -d --name sakai-app --network=sakai_default -p 8080:8080 \
-              -v ~/sakai.properties:/opt/tomcat/sakai/sakai.properties \
-              ankitosm/sakai:${{ github.event.inputs.branch_name }}
+            echo "🚀 Running Sakai container..."
+            docker run -d --name sakai-app --network=sakai_default -p 8080:8080 ankitosm/sakai:${{ github.event.inputs.branch_name }}
             
             echo "✅ Deployment complete! Sakai should be running on http://${{ secrets.VPS_HOST }}:8080"
