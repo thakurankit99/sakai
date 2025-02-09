@@ -19,13 +19,13 @@ jobs:
           ref: ${{ github.event.inputs.branch_name }}
 
       - name: Set Up JDK 11
-        uses: actions/setup-java@v3
+        uses: actions/setup-java@v4
         with:
           java-version: 11
           architecture: x64
 
       - name: Cache Maven Dependencies
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: ~/.m2/repository
           key: ${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
@@ -38,25 +38,26 @@ jobs:
           cp web/target/sakai.war ./sakai.war
 
       - name: Upload `sakai.war` as an Artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: sakai-war
           path: ./sakai.war
+          compression-level: 0  # Optional: Adjust compression for speed
 
   docker:
     needs: build
     runs-on: ubuntu-20.04
     steps:
       - name: Checkout Repository (For Dockerfile)
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Download `sakai.war` from Artifact
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: sakai-war
 
       - name: Checkout `sakaiprops` Repository (Fetch `sakai.properties`)
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           repository: thakurankit99/sakaiprops
           ref: main
