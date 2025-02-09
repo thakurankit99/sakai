@@ -33,28 +33,33 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-maven-
 
-      - name: Build Parent POM First
+      - name: Set Environment Variables
         run: |
-          echo "🔧 Building parent POM (master)..."
-          mvn -q clean install -N
-          mvn -q clean install -pl master -am -DskipTests
+          echo "CATALINA_HOME=/opt/tomcat" >> $GITHUB_ENV
+          echo "SAKAI_HOME=$CATALINA_HOME/sakai" >> $GITHUB_ENV
 
-      - name: Build Sakai (Quiet Mode)
+      - name: Build and Deploy Sakai
         run: |
-          echo "🔧 Building Sakai in quiet mode..."
-          mvn -q clean install -Dmaven.test.skip=true -U -Dorg.slf4j.simpleLogger.defaultLogLevel=error | tee build.log | grep -E "ERROR|WARN|BUILD SUCCESS|BUILD FAILURE" || true
+          mkdir -p $CATALINA_HOME/sakai
+          mvn clean install sakai:deploy \
+            -Dmaven.tomcat.home=$CATALINA_HOME \
+            -Dsakai.home=$CATALINA_HOME/sakai \
+            -Djava.net.preferIPv4Stack=true \
+            -Dmaven.test.skip=true \
+            -Dmaven.cleanup=true | tee build.log
 
-      - name: Debug Last 50 Lines if Build Fails
+      - name: Check for Build Errors
         if: failure()
         run: |
-          echo "❌ Build failed! Showing last 50 lines of logs for debugging..."
+          echo "❌ Build failed! Showing last 50 lines of logs..."
           tail -n 50 build.log
+          exit 1
 
       - name: Collect All WAR Files
         run: |
           echo "🔍 Collecting all .war files..."
           mkdir -p sakai-webapps
-          find . -name "*.war" -exec cp {} sakai-webapps/ \;
+          find $CATALINA_HOME/webapps -name "*.war" -exec cp {} sakai-webapps/ \;
           ls -lah sakai-webapps | tee collected_wars.log
 
       - name: Upload WAR Files as Artifact
@@ -94,12 +99,12 @@ jobs:
           cp sakaiprops/sakai.properties ./
           cp sakaiprops/context.xml ./
           cp sakaiprops/server.xml ./
-          cp sakaiprops/mysql-connector-j-8.4.0.tar.gz ./
+          cp sakaiprops/mysql-connector-j-8.4.0.jar ./
 
-      - name: Build Docker Image (Quiet Mode)
+      - name: Build Docker Image
         run: |
-          echo "✅ Building Docker image (Quiet Mode)..."
-          docker build -q --no-cache -t ankitosm/sakai:${{ github.event.inputs.branch_name }} .
+          echo "✅ Building Docker image..."
+          docker build --no-cache -t ankitosm/sakai:${{ github.event.inputs.branch_name }} .
 
       - name: Log in to Docker Hub
         run: echo "${{ secrets.DOCKER_HUB_PASSWORD }}" | docker login -u "${{ secrets.DOCKER_HUB_USERNAME }}" --password-stdin
@@ -131,17 +136,10 @@ jobs:
             docker rm sakai-app || true
 
             echo "🔄 Setting up sakaiprops..."
-            rm -rf ~/sakaiprops || true
+            rm -rf ~/sakai || true
             mkdir -p ~/sakai
-            git clone https://${{ secrets.SAKAIPROPS_PAT }}@github.com/thakurankit99/sakaiprops.git ~/sakaiprops
-            cp ~/sakaiprops/sakai.properties ~/sakai/sakai.properties
-            cp ~/sakaiprops/context.xml ~/sakai/context.xml
-            cp ~/sakaiprops/server.xml ~/sakai/server.xml
-            cp ~/sakaiprops/mysql-connector-j-8.4.0.tar.gz ~/sakai/
-
-            echo "🔄 Extracting MySQL Connector..."
-            tar -xvzf ~/sakai/mysql-connector-j-8.4.0.tar.gz -C ~/sakai/
-            find ~/sakai/ -name "*.jar" -exec mv {} ~/sakai/ \;
+            git clone https://${{ secrets.SAKAIPROPS_PAT }}@github.com/thakurankit99/sakaiprops.git ~/sakai
+            cp ~/sakai/sakai.properties ~/sakai/context.xml ~/sakai/server.xml ~/sakai/mysql-connector-j-8.4.0.jar ~/sakai/
 
             echo "🚀 Starting new Sakai container..."
             docker run -d --name sakai-app \
@@ -150,7 +148,7 @@ jobs:
               -v ~/sakai/sakai.properties:/opt/tomcat/sakai/sakai.properties \
               -v ~/sakai/context.xml:/opt/tomcat/conf/context.xml \
               -v ~/sakai/server.xml:/opt/tomcat/conf/server.xml \
-              -v ~/sakai/mysql-connector.jar:/opt/tomcat/lib/mysql-connector.jar \
+              -v ~/sakai/mysql-connector-j-8.4.0.jar:/opt/tomcat/lib/mysql-connector-j-8.4.0.jar \
               ankitosm/sakai:${{ github.event.inputs.branch_name }}
 
             echo "✅ Deployment complete! Sakai should be running on http://${{ secrets.VPS_HOST }}:8080"
