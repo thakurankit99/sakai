@@ -56,7 +56,19 @@ jobs:
           username: ${{ secrets.VPS_USER }}
           password: ${{ secrets.VPS_PASSWORD }}
           script: |
+            echo "🔄 Pulling latest Sakai image..."
             docker pull thakurankit99/sakai:23.x
+            
+            echo "🔄 Ensuring Docker network exists..."
+            docker network create sakai_default || true
+            
+            echo "🛑 Stopping existing Sakai container..."
             docker stop sakai-app || true
+            
+            echo "🗑 Removing old Sakai container..."
             docker rm sakai-app || true
+            
+            echo "🚀 Starting new Sakai container..."
             docker run -d --name sakai-app --network=sakai_default -p 8080:8080 thakurankit99/sakai:23.x
+            
+            echo "✅ Deployment complete! Sakai should be running on http://${{ secrets.VPS_HOST }}:8080"
