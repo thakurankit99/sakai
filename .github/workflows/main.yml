@@ -30,7 +30,7 @@ jobs:
       - name: Set Up JDK 11
         uses: actions/setup-java@v4
         with:
-          distribution: "temurin"  # ✅ Required field (Fix)
+          distribution: "temurin"
           java-version: "11"
           architecture: x64
 
@@ -45,14 +45,22 @@ jobs:
       - name: Build Sakai with Maven
         run: |
           mvn clean install -Dmaven.test.skip=true
-          cp web/target/sakai.war ./sakai.war
+
+      - name: Debug Build Output
+        run: |
+          echo "🔍 Listing all `.war` files..."
+          find . -name "*.war"
+
+      - name: Copy `sakai.war` for Artifact Upload
+        run: |
+          cp portal/target/sakai.war ./sakai.war || cp web/target/sakai.war ./sakai.war
 
       - name: Upload `sakai.war` as an Artifact
         uses: actions/upload-artifact@v4
         with:
           name: sakai-war
           path: ./sakai.war
-          compression-level: 0  # Optional: Adjust compression for speed
+          compression-level: 0
 
   docker:
     needs: build
@@ -73,10 +81,10 @@ jobs:
           ref: main
           token: ${{ secrets.SAKAIPROPS_PAT }}
 
-      - name: Move `sakai.properties` Into `sakai/` Directory
+      - name: Move `sakai.properties` Into Correct Location
         run: |
-          mkdir -p sakai
-          mv sakai.properties sakai/sakai.properties
+          mkdir -p /opt/tomcat/sakai
+          mv sakai.properties /opt/tomcat/sakai/sakai.properties
 
       - name: Build Docker Image (With Correct `sakai.properties` Path)
         run: |
