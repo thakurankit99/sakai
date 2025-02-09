@@ -42,36 +42,14 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-maven-
 
-      - name: Build Master Project (First Step)
-        run: |
-          cd master
-          mvn clean install -Dmaven.test.skip=true
-
-      - name: Build Root Project (Final Step)
+      - name: Build Sakai Without Deployment
         run: |
           mvn clean install -Dmaven.test.skip=true
 
-      - name: Debug Build Output
+      - name: Debug Built Components
         run: |
-          echo "🔍 Listing all `.war` files..."
-          find . -name "*.war" -exec ls -lh {} \;
-
-      - name: Verify Component Manager Exists
-        run: |
-          if [ ! -d "components/sakai-component-manager-23-SNAPSHOT/lib" ]; then
-            echo "❌ Missing sakai-component-manager-23-SNAPSHOT/lib"
-            exit 1
-          else
-            echo "✅ Component manager found."
-          fi
-
-      - name: Deploy Sakai WAR
-        run: |
-          mvn sakai:deploy \
-            -Dmaven.tomcat.home=$CATALINA_HOME \
-            -Dsakai.home=$CATALINA_HOME/sakai \
-            -Djava.net.preferIPv4Stack=true \
-            -Dmaven.cleanup=false
+          echo "🔍 Checking built modules..."
+          find components -type d -name "sakai-*"
 
       - name: Verify WAR File Exists
         run: |
@@ -81,6 +59,14 @@ jobs:
           else
             echo "✅ Build succeeded, sakai.war found."
           fi
+
+      - name: Deploy Sakai WAR
+        run: |
+          mvn sakai:deploy \
+            -Dmaven.tomcat.home=$CATALINA_HOME \
+            -Dsakai.home=$CATALINA_HOME/sakai \
+            -Djava.net.preferIPv4Stack=true \
+            -Dmaven.cleanup=false
 
       - name: Copy `sakai.war` for Artifact Upload
         run: |
