@@ -12,10 +12,10 @@ jobs:
   build:
     runs-on: ubuntu-20.04
     steps:
-      - name: Checkout Sakai Repository (Only `23.x` branch)
+      - name: Checkout Sakai Repository (Full History)
         uses: actions/checkout@v4
         with:
-          fetch-depth: 1  # Clone only the latest commit (improves speed)
+          fetch-depth: 0  # Fetches full repository history (Reverted change)
           ref: ${{ github.event.inputs.branch_name }}
 
       - name: Set Up JDK 11
@@ -71,7 +71,7 @@ jobs:
       - name: Checkout Repository (For Dockerfile)
         uses: actions/checkout@v4
         with:
-          fetch-depth: 1  # Optimize speed by fetching only the latest commit
+          fetch-depth: 0  # Full repo history (Reverted change)
 
       - name: Debug: Check for Dockerfile in Root
         run: |
