@@ -15,7 +15,7 @@ jobs:
       - name: Checkout Sakai Repository
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0
+          fetch-depth: 0  # Get full history for correct build
           ref: ${{ github.event.inputs.branch_name }}
 
       - name: Set Up JDK 11
@@ -71,8 +71,9 @@ jobs:
       - name: Checkout Repository (For Dockerfile)
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0
-          ref: ${{ github.event.inputs.branch_name }}  # Ensure Dockerfile is taken from 23.x
+          fetch-depth: 1  # Fetch latest commit only (prevents missing "Run Workflow" option)
+          ref: ${{ github.event.inputs.branch_name }}
+          persist-credentials: false  # Ensures GitHub correctly recognizes manual dispatch
 
       - name: Debug: Check for Dockerfile in Root
         run: |
