@@ -1,29 +1,40 @@
-# Use OpenJDK 11 as the base image
+# ========================== #
+#      Runtime Container     #
+# ========================== #
 FROM openjdk:11-jdk
 
-# Set the working directory
-WORKDIR /opt/sakai
+# Set working directory
+WORKDIR /opt/tomcat
 
-# Copy the source code into the container
-COPY . /opt/sakai
+# Download and install Apache Tomcat 9.0.69
+RUN mkdir -p /opt/tomcat \
+    && curl -L "https://archive.apache.org/dist/tomcat/tomcat-9/v9.0.69/bin/apache-tomcat-9.0.69.tar.gz" -o /opt/tomcat/tomcat.tar.gz \
+    && tar -xvzf /opt/tomcat/tomcat.tar.gz -C /opt/tomcat --strip-components 1
 
-# Update package lists and install required dependencies
-RUN apt update && apt install -y maven default-mysql-client \
-    && mvn clean install -Dmaven.test.skip=true \
-    && rm -rf /var/lib/apt/lists/*  # Clean up to reduce image size
+# Modify Tomcat Configuration for UTF-8 Support
+RUN sed -i 's/<Connector port="8080"/<Connector port="8080" URIEncoding="UTF-8"/g' /opt/tomcat/conf/server.xml
 
-# Set up Tomcat
-RUN apt install -y wget unzip && \
-    wget https://downloads.apache.org/tomcat/tomcat-9/v9.0.78/bin/apache-tomcat-9.0.78.tar.gz && \
-    tar -xvzf apache-tomcat-9.0.78.tar.gz && \
-    mv apache-tomcat-9.0.78 /opt/tomcat && \
-    rm apache-tomcat-9.0.78.tar.gz
+# Improve startup speed by disabling JAR scanning
+RUN sed -i 's|<Context>|<Context><JarScanner><JarScanFilter defaultPluggabilityScan="false" /></JarScanner>|g' /opt/tomcat/conf/context.xml
 
-# Copy the Sakai built files to Tomcat webapps
-RUN cp -r target/sakai /opt/tomcat/webapps/
+# Copy Tomcat Optimizations
+COPY context.xml /opt/tomcat/conf/
 
-# Expose Tomcat's default port
+# Set environment variables for Tomcat
+ENV CATALINA_HOME /opt/tomcat
+ENV PATH $CATALINA_HOME/bin:$PATH
+
+# Create the `sakai` directory inside Tomcat
+RUN mkdir -p /opt/tomcat/sakai
+
+# Copy sakai.properties from external repository into `/opt/tomcat/sakai/`
+COPY sakai.properties /opt/tomcat/sakai/sakai.properties
+
+# Copy Sakai WAR file from GitHub build
+COPY sakai.war /opt/tomcat/webapps/sakai.war
+
+# Expose Tomcat's HTTP port
 EXPOSE 8080
 
 # Start Tomcat when the container runs
-CMD ["/opt/tomcat/bin/catalina.sh", "run"]
+CMD ["./bin/startup.sh"]
