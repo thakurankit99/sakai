@@ -120,7 +120,14 @@ jobs:
 
       - name: Extract Sakai Build
         run: |
-          tar -xzvf ${{ runner.temp }}/sakai-build/sakai-build.tar.gz -C $CATALINA_HOME
+          echo "🔍 Checking if sakai-build.tar.gz exists..."
+          if [ ! -f "${{ runner.temp }}/sakai-build/sakai-build.tar.gz" ]; then
+            echo "❌ ERROR: Artifact sakai-build.tar.gz not found!"
+            exit 1
+          fi
+
+          echo "✅ Extracting Sakai Build..."
+          tar -xzvf "${{ runner.temp }}/sakai-build/sakai-build.tar.gz" -C "$CATALINA_HOME"
 
       - name: Build Docker Image
         run: |
