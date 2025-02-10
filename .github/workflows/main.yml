@@ -59,12 +59,12 @@ jobs:
 
       - name: Replace Default Tomcat Configurations with `sakaiprops`
         run: |
-          cp sakaiprops/context.xml tomcat/conf/context.xml
-          cp sakaiprops/server.xml tomcat/conf/server.xml
-          cp sakaiprops/sakai.properties tomcat/sakai/sakai.properties
-          cp sakaiprops/mysql-connector-j-8.4.0.jar tomcat/lib/mysql-connector-j-8.4.0.jar
-          cp sakaiprops/setenv.sh tomcat/bin/setenv.sh
-          chmod +x tomcat/bin/setenv.sh
+          cp sakaiprops/context.xml $CATALINA_HOME/conf/context.xml
+          cp sakaiprops/server.xml $CATALINA_HOME/conf/server.xml
+          cp sakaiprops/sakai.properties $CATALINA_HOME/sakai/sakai.properties
+          cp sakaiprops/mysql-connector-j-8.4.0.jar $CATALINA_HOME/lib/mysql-connector-j-8.4.0.jar
+          cp sakaiprops/setenv.sh $CATALINA_HOME/bin/setenv.sh
+          chmod +x $CATALINA_HOME/bin/setenv.sh
 
       - name: Checkout Sakai 23.x Repository
         uses: actions/checkout@v4
