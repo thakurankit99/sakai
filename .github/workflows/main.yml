@@ -49,6 +49,10 @@ jobs:
             -Djava.net.preferIPv4Stack=true \
             -Dmaven.test.skip=true \
             -Dsakai.cleanup=true | tee build.log
+          
+          echo "🔍 Checking for built WAR files..."
+          ls -lah $CATALINA_HOME/webapps/*.war || (echo "⚠️ WAR files missing!" && exit 1)
+
 
       - name: Check for Build Errors
         if: failure()
