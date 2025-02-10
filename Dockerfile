@@ -1,6 +1,7 @@
 # ========================== #
 #      Runtime Container     #
 # ========================== #
+
 FROM openjdk:11-jdk
 
 # Set working directory
@@ -19,15 +20,20 @@ ENV CATALINA_HOME=/opt/tomcat
 ENV PATH=$CATALINA_HOME/bin:$PATH
 
 # Create necessary directories
-RUN mkdir -p /opt/tomcat/sakai /opt/tomcat/webapps /opt/tomcat/lib
+RUN mkdir -p /opt/tomcat/sakai /opt/tomcat/webapps /opt/tomcat/components /opt/tomcat/lib
 
-# Copy all pre-built Sakai WAR files
-COPY sakai-webapps/*.war /opt/tomcat/webapps/
+# Copy WAR files into Tomcat webapps
+COPY webapps/*.war /opt/tomcat/webapps/
+
+# Copy OSGi components (if any) into Tomcat
+COPY components/*.jar /opt/tomcat/components/
 
 # Copy essential configuration files
 COPY context.xml /opt/tomcat/conf/context.xml
 COPY server.xml /opt/tomcat/conf/server.xml
 COPY sakai.properties /opt/tomcat/sakai/sakai.properties
+
+# Copy MySQL connector to Tomcat lib
 COPY mysql-connector-j-8.4.0.jar /opt/tomcat/lib/mysql-connector-j-8.4.0.jar
 
 # Copy setenv.sh and make it executable
@@ -35,11 +41,11 @@ COPY setenv.sh /opt/tomcat/bin/setenv.sh
 RUN chmod +x /opt/tomcat/bin/setenv.sh
 
 # Expose Tomcat's HTTP port
-EXPOSE 8181
+EXPOSE 8080
 
 # Healthcheck to verify Tomcat is running
 HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
-    CMD curl -f http://localhost:8181 || exit 1
+    CMD curl -f http://localhost:8080 || exit 1
 
-# Start Tomcat using startup.sh (Recommended by Sakai)
-CMD ["sh", "-c", "/opt/tomcat/bin/startup.sh && tail -f /opt/tomcat/logs/catalina.out"]
+# Start Tomcat in the foreground
+CMD ["/opt/tomcat/bin/catalina.sh", "run"]
