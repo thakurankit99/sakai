@@ -124,7 +124,6 @@ jobs:
             exit 1
           else
             echo "✅ Dockerfile found."
-        ```
 
       - name: Set Environment Variables in Docker Job
         run: |
