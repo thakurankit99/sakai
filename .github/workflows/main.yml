@@ -60,13 +60,13 @@ jobs:
 
       - name: Build and Deploy Sakai
         run: |
-          mkdir -p /opt/tomcat/sakai /opt/tomcat/components
+          mkdir -p tomcat/webapps tomcat/components tomcat/sakai
           mvn clean install sakai:deploy \
             -DresolveDependenciesInParallel \
             -Dbuildcache -B \
-            -Dmaven.tomcat.home=/opt/tomcat \
-            -Dsakai.home=/opt/tomcat/sakai \
-            -Dsakai.components.dir=/opt/tomcat/components \
+            -Dmaven.tomcat.home=${{ github.workspace }}/tomcat \
+            -Dsakai.home=${{ github.workspace }}/tomcat/sakai \
+            -Dsakai.components.dir=${{ github.workspace }}/tomcat/components \
             -Djava.net.preferIPv4Stack=true \
             -Dmaven.test.skip=true \
             -Dsakai.cleanup=true | tee build.log
@@ -90,8 +90,8 @@ jobs:
         with:
           name: sakai-build
           path: |
-            /opt/tomcat/webapps/
-            /opt/tomcat/components/
+            ${{ github.workspace }}/tomcat/webapps/
+            ${{ github.workspace }}/tomcat/components/
           compression-level: 0
 
   docker:
@@ -140,8 +140,8 @@ jobs:
           cp sakaiprops/mysql-connector-j-8.4.0.jar ./
           cp sakaiprops/setenv.sh ./
 
-          mv opt/tomcat/webapps webapps
-          mv opt/tomcat/components components
+          mv tomcat/webapps webapps
+          mv tomcat/components components
 
       - name: Build Docker Image
         run: |
