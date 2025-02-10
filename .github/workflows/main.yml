@@ -25,13 +25,6 @@ jobs:
           java-version: "11"
           architecture: x64
 
-      - name: Verify Java Installation
-        run: |
-          echo "🔍 Checking Java Environment..."
-          echo "JAVA_HOME: $JAVA_HOME"
-          echo "PATH: $PATH"
-          java -version
-
       - name: Cache Maven Dependencies
         uses: actions/cache@v4
         with:
@@ -40,23 +33,11 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-maven-
 
-      - name: Set Environment Variables (Without Overwriting JAVA_HOME)
+      - name: Set Environment Variables
         run: |
-          echo "CATALINA_HOME=/opt/tomcat" >> $GITHUB_ENV
-          echo "SAKAI_HOME=/opt/tomcat/sakai" >> $GITHUB_ENV
+          echo "CATALINA_HOME=${{ github.workspace }}/tomcat" >> $GITHUB_ENV
+          echo "SAKAI_HOME=${{ github.workspace }}/tomcat/sakai" >> $GITHUB_ENV
           echo "PATH=$JAVA_HOME/bin:$CATALINA_HOME/bin:$PATH" >> $GITHUB_ENV
-
-      - name: Verify Environment Variables
-        run: |
-          echo "✅ JAVA_HOME: $JAVA_HOME"
-          echo "✅ PATH: $PATH"
-          echo "✅ CATALINA_HOME: $CATALINA_HOME"
-          echo "✅ SAKAI_HOME: $SAKAI_HOME"
-      
-      - name: Build Master POM
-        run: |
-          cd master
-          mvn clean install
 
       - name: Build and Deploy Sakai
         run: |
@@ -71,27 +52,11 @@ jobs:
             -Dmaven.test.skip=true \
             -Dsakai.cleanup=true | tee build.log
 
-      - name: Check for Build Errors
-        if: failure()
-        run: |
-          echo "❌ Build failed! Showing last 50 lines of logs..."
-          tail -n 50 build.log
-          exit 1
-
-      - name: Verify Components & Webapps Are Deployed
-        run: |
-          echo "📂 Checking /opt/tomcat/components..."
-          ls -lah /opt/tomcat/components || exit 1
-          echo "📂 Checking /opt/tomcat/webapps..."
-          ls -lah /opt/tomcat/webapps || exit 1
-
-      - name: Upload Components & Webapps as Artifacts
+      - name: Upload Entire Tomcat Directory as Artifact
         uses: actions/upload-artifact@v4
         with:
           name: sakai-build
-          path: |
-            ${{ github.workspace }}/tomcat/webapps/
-            ${{ github.workspace }}/tomcat/components/
+          path: tomcat/
           compression-level: 0
 
   docker:
@@ -108,20 +73,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: sakai-build
-          path: .
-
-      - name: Verify Downloaded Files Before Docker Build
-        run: |
-          echo "Checking webapps..."
-          if [ ! -d "opt/tomcat/webapps" ] || [ -z "$(ls -A opt/tomcat/webapps)" ]; then
-            echo "❌ 'opt/tomcat/webapps' directory is empty! Failing build."
-            exit 1
-          fi
-          echo "Checking components..."
-          if [ ! -d "opt/tomcat/components" ] || [ -z "$(ls -A opt/tomcat/components)" ]; then
-            echo "❌ 'opt/tomcat/components' directory is empty! Failing build."
-            exit 1
-          fi
+          path: tomcat/
 
       - name: Checkout sakaiprops Repository
         uses: actions/checkout@v4
@@ -131,29 +83,23 @@ jobs:
           token: ${{ secrets.SAKAIPROPS_PAT }}
           path: sakaiprops
 
-      - name: Prepare sakaiprops Files for Docker Build
+      - name: Ensure sakaiprops Files Are Placed Correctly
         run: |
-          cp sakaiprops/apache-tomcat-9.0.69.tar.gz ./
-          cp sakaiprops/sakai.properties ./
-          cp sakaiprops/context.xml ./
-          cp sakaiprops/server.xml ./
-          cp sakaiprops/mysql-connector-j-8.4.0.jar ./
-          cp sakaiprops/setenv.sh ./
-
-          mv tomcat/webapps webapps
-          mv tomcat/components components
+          mkdir -p tomcat/conf tomcat/lib tomcat/sakai tomcat/bin
+          cp sakaiprops/context.xml tomcat/conf/context.xml
+          cp sakaiprops/server.xml tomcat/conf/server.xml
+          cp sakaiprops/sakai.properties tomcat/sakai/sakai.properties
+          cp sakaiprops/mysql-connector-j-8.4.0.jar tomcat/lib/mysql-connector-j-8.4.0.jar
+          cp sakaiprops/setenv.sh tomcat/bin/setenv.sh
+          chmod +x tomcat/bin/setenv.sh
 
       - name: Build Docker Image
         run: |
           echo "✅ Building Docker image..."
           docker build --no-cache -t ankitosm/sakai:${{ github.event.inputs.branch_name }} .
 
-      - name: Log in to Docker Hub
-        run: echo "${{ secrets.DOCKER_HUB_PASSWORD }}" | docker login -u "${{ secrets.DOCKER_HUB_USERNAME }}" --password-stdin
-
       - name: Push Docker Image to Docker Hub
         run: |
-          echo "✅ Pushing Docker image..."
           docker push ankitosm/sakai:${{ github.event.inputs.branch_name }}
 
   deploy:
@@ -167,18 +113,11 @@ jobs:
           username: ${{ secrets.VPS_USER }}
           password: ${{ secrets.VPS_PASSWORD }}
           script: |
-            echo "🔄 Pulling latest Sakai image..."
             docker pull ankitosm/sakai:${{ github.event.inputs.branch_name }}
-
-            echo "🚀 Stopping and removing old container (if any)..."
             docker rm -f sakai-app || true
-
-            echo "🚀 Starting new Sakai container..."
             docker run -d --name sakai-app \
               --network=sakai_default \
               -p 8181:8181 \
               -e CATALINA_HOME=/opt/tomcat \
               -e SAKAI_HOME=/opt/tomcat/sakai \
               ankitosm/sakai:${{ github.event.inputs.branch_name }}
-
-            echo "✅ Deployment complete! Sakai should be running on http://${{ secrets.VPS_HOST }}:8181"
