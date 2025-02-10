@@ -25,11 +25,12 @@ jobs:
           java-version: "11"
           architecture: x64
 
-      - name: Set Up Maven (Skip Manual Installation)
+      - name: Verify Java Installation
         run: |
-          echo "MAVEN_HOME=/usr/share/maven" >> $GITHUB_ENV
-          echo "PATH=$MAVEN_HOME/bin:$PATH" >> $GITHUB_ENV
-          mvn -version
+          echo "🔍 Checking Java Environment..."
+          echo "JAVA_HOME: $JAVA_HOME"
+          echo "PATH: $PATH"
+          java -version
 
       - name: Cache Maven Dependencies
         uses: actions/cache@v4
@@ -39,13 +40,19 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-maven-
 
-      - name: Set Environment Variables
+      - name: Set Environment Variables (Without Overwriting JAVA_HOME)
         run: |
-          echo "JAVA_HOME=/usr/lib/jvm/java-11-openjdk-amd64" >> $GITHUB_ENV
           echo "CATALINA_HOME=/opt/tomcat" >> $GITHUB_ENV
           echo "SAKAI_HOME=/opt/tomcat/sakai" >> $GITHUB_ENV
           echo "PATH=$JAVA_HOME/bin:$CATALINA_HOME/bin:$PATH" >> $GITHUB_ENV
 
+      - name: Verify Environment Variables
+        run: |
+          echo "✅ JAVA_HOME: $JAVA_HOME"
+          echo "✅ PATH: $PATH"
+          echo "✅ CATALINA_HOME: $CATALINA_HOME"
+          echo "✅ SAKAI_HOME: $SAKAI_HOME"
+      
       - name: Build Master POM
         run: |
           cd master
