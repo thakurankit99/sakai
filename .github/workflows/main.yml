@@ -25,6 +25,13 @@ jobs:
           java-version: "11"
           architecture: x64
 
+      - name: Verify Java Installation
+        run: |
+          echo "🔍 Checking Java Environment..."
+          echo "JAVA_HOME: $JAVA_HOME"
+          echo "PATH: $PATH"
+          java -version
+
       - name: Cache Maven Dependencies
         uses: actions/cache@v4
         with:
@@ -98,8 +105,12 @@ jobs:
           echo "✅ Building Docker image..."
           docker build --no-cache -t ankitosm/sakai:${{ github.event.inputs.branch_name }} .
 
+      - name: Log in to Docker Hub
+        run: echo "${{ secrets.DOCKER_HUB_PASSWORD }}" | docker login -u "${{ secrets.DOCKER_HUB_USERNAME }}" --password-stdin
+
       - name: Push Docker Image to Docker Hub
         run: |
+          echo "✅ Pushing Docker image..."
           docker push ankitosm/sakai:${{ github.event.inputs.branch_name }}
 
   deploy:
@@ -113,11 +124,18 @@ jobs:
           username: ${{ secrets.VPS_USER }}
           password: ${{ secrets.VPS_PASSWORD }}
           script: |
+            echo "🔄 Pulling latest Sakai image..."
             docker pull ankitosm/sakai:${{ github.event.inputs.branch_name }}
+
+            echo "🚀 Stopping and removing old container (if any)..."
             docker rm -f sakai-app || true
+
+            echo "🚀 Starting new Sakai container..."
             docker run -d --name sakai-app \
               --network=sakai_default \
               -p 8181:8181 \
               -e CATALINA_HOME=/opt/tomcat \
               -e SAKAI_HOME=/opt/tomcat/sakai \
               ankitosm/sakai:${{ github.event.inputs.branch_name }}
+
+            echo "✅ Deployment complete! Sakai should be running on http://${{ secrets.VPS_HOST }}:8181"
