@@ -83,9 +83,9 @@ jobs:
           mvn clean install sakai:deploy \
             -DresolveDependenciesInParallel \
             -Dbuildcache -B \
-            -Dmaven.tomcat.home=${{ github.workspace }}/tomcat \
-            -Dsakai.home=${{ github.workspace }}/tomcat/sakai \
-            -Dsakai.components.dir=${{ github.workspace }}/tomcat/components \
+            -Dmaven.tomcat.home=$CATALINA_HOME \
+            -Dsakai.home=$CATALINA_HOME/sakai \
+            -Dsakai.components.dir=$CATALINA_HOME/components \
             -Djava.net.preferIPv4Stack=true \
             -Dmaven.test.skip=true \
             -Dsakai.cleanup=true | tee build.log
@@ -93,16 +93,16 @@ jobs:
       - name: Verify Tomcat Structure
         run: |
           echo "📂 Checking Tomcat structure..."
-          ls -lah tomcat/
-          ls -lah tomcat/webapps/
-          ls -lah tomcat/components/
-          ls -lah tomcat/conf/
+          ls -lah $CATALINA_HOME/
+          ls -lah $CATALINA_HOME/webapps/
+          ls -lah $CATALINA_HOME/components/
+          ls -lah $CATALINA_HOME/conf/
 
       - name: Upload Entire Tomcat Directory as Artifact
         uses: actions/upload-artifact@v4
         with:
           name: sakai-build
-          path: tomcat/
+          path: ${{ env.CATALINA_HOME }}/
           compression-level: 0
 
   docker:
@@ -113,7 +113,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: sakai-build
-          path: tomcat/
+          path: ${{ env.CATALINA_HOME }}/
 
       - name: Build Docker Image
         run: |
