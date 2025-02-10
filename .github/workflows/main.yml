@@ -41,13 +41,14 @@ jobs:
 
       - name: Build and Deploy Sakai
         run: |
-          mkdir -p $CATALINA_HOME/sakai
-          mvn clean install sakai:deploy \
+          mvn clean install sakai:deploy -o \
+            -DresolveDependenciesInParallel \
+            -Dbuildcache -B \
             -Dmaven.tomcat.home=$CATALINA_HOME \
             -Dsakai.home=$CATALINA_HOME/sakai \
             -Djava.net.preferIPv4Stack=true \
             -Dmaven.test.skip=true \
-            -Dmaven.cleanup=true | tee build.log
+            -Dsakai.cleanup=true | tee build.log
 
       - name: Check for Build Errors
         if: failure()
