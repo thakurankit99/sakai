@@ -59,6 +59,7 @@ jobs:
 
       - name: Replace Default Tomcat Configurations with `sakaiprops`
         run: |
+          mkdir -p $CATALINA_HOME/sakai
           cp sakaiprops/context.xml $CATALINA_HOME/conf/context.xml
           cp sakaiprops/server.xml $CATALINA_HOME/conf/server.xml
           cp sakaiprops/sakai.properties $CATALINA_HOME/sakai/sakai.properties
