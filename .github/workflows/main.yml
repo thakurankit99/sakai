@@ -37,17 +37,28 @@ jobs:
         run: |
           echo "CATALINA_HOME=/opt/tomcat" >> $GITHUB_ENV
           echo "SAKAI_HOME=$CATALINA_HOME/sakai" >> $GITHUB_ENV
-          echo "JAVA_OPTS='-Xmx2g -Xms2g -Djava.awt.headless=true'" >> $GITHUB_ENV
+          echo "PATH=$CATALINA_HOME/bin:$PATH" >> $GITHUB_ENV
 
-      - name: Build and Deploy Sakai
+      - name: Build Master POM (Like Local)
+        run: |
+          echo "🔧 Building master module first..."
+          cd master
+          mvn clean install -B
+
+      - name: Build Sakai and Deploy to Tomcat
         run: |
           mkdir -p $CATALINA_HOME/sakai
-          mvn clean install sakai:deploy -o -DresolveDependenciesInParallel -Dbuildcache -B \
+          echo "🔧 Running mvn sakai:deploy to deploy Sakai automatically..."
+          mvn clean install sakai:deploy \
             -Dmaven.tomcat.home=$CATALINA_HOME \
             -Dsakai.home=$CATALINA_HOME/sakai \
+            -DresolveDependenciesInParallel \
+            -Dbuildcache \
+            -B \
             -Djava.net.preferIPv4Stack=true \
             -Dmaven.test.skip=true \
-            -Dsakai.cleanup=true | tee build.log
+            -Dsakai.cleanup=true \
+            | tee build.log
 
       - name: Check for Build Errors
         if: failure()
@@ -56,20 +67,18 @@ jobs:
           tail -n 50 build.log
           exit 1
 
-      - name: Collect All WAR Files
+      - name: Verify Deployment
         run: |
-          echo "🔍 Collecting all .war files..."
-          mkdir -p sakai-webapps
-          find $CATALINA_HOME/webapps -name "*.war" -exec cp {} sakai-webapps/ \;
-          ls -lah sakai-webapps | tee collected_wars.log
+          echo "🔍 Checking deployed components and webapps..."
+          ls -lah $CATALINA_HOME/webapps
+          ls -lah $CATALINA_HOME/components
 
-      - name: Upload WAR Files as Artifact
+      - name: Upload Built Tomcat Directory as Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: sakai-wars
-          path: sakai-webapps/
-          if-no-files-found: error
-          retention-days: 5
+          name: sakai-tomcat
+          path: /opt/tomcat/
+          compression-level: 0
 
   docker:
     needs: build
@@ -81,16 +90,11 @@ jobs:
           fetch-depth: 1
           ref: ${{ github.event.inputs.branch_name }}
 
-      - name: Download All WAR Files
+      - name: Download Built Tomcat Directory
         uses: actions/download-artifact@v4
         with:
-          name: sakai-wars
-          path: sakai-webapps/
-
-      - name: Verify Downloaded WAR Files
-        run: |
-          echo "🔍 Checking downloaded WAR files..."
-          ls -lah sakai-webapps || (echo "⚠️ No WAR files found!" && exit 1)
+          name: sakai-tomcat
+          path: /opt/tomcat/
 
       - name: Checkout sakaiprops Repository
         uses: actions/checkout@v4
@@ -102,23 +106,17 @@ jobs:
 
       - name: Prepare sakaiprops Files for Docker Build
         run: |
-          cp sakaiprops/apache-tomcat-9.0.69.tar.gz ./
-          cp sakaiprops/sakai.properties ./
-          cp sakaiprops/context.xml ./
-          cp sakaiprops/server.xml ./
-          cp sakaiprops/mysql-connector-j-8.4.0.jar ./
-          cp sakaiprops/setenv.sh ./
+          cp sakaiprops/apache-tomcat-9.0.69.tar.gz ./ 
+          cp sakaiprops/sakai.properties ./ 
+          cp sakaiprops/context.xml ./ 
+          cp sakaiprops/server.xml ./ 
+          cp sakaiprops/mysql-connector-j-8.4.0.jar ./ 
+          cp sakaiprops/setenv.sh ./ 
 
       - name: Build Docker Image
         run: |
           echo "✅ Building Docker image..."
-          docker build --no-cache -t ankitosm/sakai:${{ github.event.inputs.branch_name }} . | tee docker-build.log
-
-      - name: Debug Docker Logs (If Build Fails)
-        if: failure()
-        run: |
-          echo "❌ Docker build failed! Showing last 50 lines of logs..."
-          tail -n 50 docker-build.log
+          docker build --no-cache -t ankitosm/sakai:${{ github.event.inputs.branch_name }} .
 
       - name: Log in to Docker Hub
         run: echo "${{ secrets.DOCKER_HUB_PASSWORD }}" | docker login -u "${{ secrets.DOCKER_HUB_USERNAME }}" --password-stdin
@@ -149,7 +147,7 @@ jobs:
             docker stop sakai-app || true
             docker rm sakai-app || true
 
-            echo "🔄 Setting up sakaiprops..."
+            echo "🔄 Setting up Sakai directories..."
             rm -rf ~/sakai || true
             mkdir -p ~/sakai
             git clone https://${{ secrets.SAKAIPROPS_PAT }}@github.com/thakurankit99/sakaiprops.git ~/sakai
@@ -158,11 +156,13 @@ jobs:
             echo "🚀 Starting new Sakai container..."
             docker run -d --name sakai-app \
               --network=sakai_default \
-              -p 8181:8080 \
-              -v ~/sakai/sakai.properties:/opt/tomcat/sakai/sakai.properties \
+              -p 8181:8181 \
+              -v ~/sakai:/opt/tomcat/sakai \
               -v ~/sakai/context.xml:/opt/tomcat/conf/context.xml \
               -v ~/sakai/server.xml:/opt/tomcat/conf/server.xml \
               -v ~/sakai/mysql-connector-j-8.4.0.jar:/opt/tomcat/lib/mysql-connector-j-8.4.0.jar \
+              -v /opt/tomcat/webapps:/opt/tomcat/webapps \
+              -v /opt/tomcat/components:/opt/tomcat/components \
               ankitosm/sakai:${{ github.event.inputs.branch_name }}
 
             echo "✅ Deployment complete! Sakai should be running on http://${{ secrets.VPS_HOST }}:8181"
