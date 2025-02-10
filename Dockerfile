@@ -17,7 +17,7 @@ ENV CATALINA_HOME=/tomcat
 ENV PATH=$CATALINA_HOME/bin:$PATH
 
 # Expose Tomcat Port
-EXPOSE 8080
+EXPOSE 8181
 
 # Start Tomcat in Foreground
 CMD ["/tomcat/bin/catalina.sh", "run"]
