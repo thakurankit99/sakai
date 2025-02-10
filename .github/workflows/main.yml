@@ -151,13 +151,6 @@ jobs:
             echo "🔄 Pulling latest Sakai image..."
             docker pull ankitosm/sakai:${{ github.event.inputs.branch_name }}
 
-            echo "🔄 Ensuring Docker network exists..."
-            docker network create sakai_default || true
-
-            echo "🛑 Stopping existing Sakai container..."
-            docker stop sakai-app || true
-            docker rm sakai-app || true
-
             echo "🚀 Starting new Sakai container..."
             docker run -d --name sakai-app \
               --network=sakai_default \
