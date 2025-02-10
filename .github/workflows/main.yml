@@ -12,27 +12,21 @@ jobs:
   build:
     runs-on: ubuntu-20.04
     steps:
-      - name: Set Up JDK 11
+      - name: Set Up Java 11 (Preinstalled by GitHub)
         uses: actions/setup-java@v4
         with:
           distribution: "temurin"
           java-version: "11"
-          architecture: x64
 
       - name: Verify Java Installation
-        run: java -version
-
-      - name: Install Maven 3.8.4
         run: |
-          wget https://archive.apache.org/dist/maven/maven-3/3.8.4/binaries/apache-maven-3.8.4-bin.tar.gz
-          sudo tar -xvzf apache-maven-3.8.4-bin.tar.gz -C /opt
-          sudo mv /opt/apache-maven-3.8.4 /opt/maven
-          echo "MAVEN_HOME=/opt/maven" >> $GITHUB_ENV
-          echo "PATH=$MAVEN_HOME/bin:$PATH" >> $GITHUB_ENV
-          source $GITHUB_ENV
+          echo "🔍 Checking Java Environment..."
+          java -version
 
-      - name: Verify Maven Installation
-        run: mvn -version
+      - name: Use GitHub’s Preinstalled Maven
+        run: |
+          echo "Using GitHub's preinstalled Maven:"
+          mvn -version
 
       - name: Checkout `sakaiprops` Repository
         uses: actions/checkout@v4
@@ -42,24 +36,25 @@ jobs:
           token: ${{ secrets.SAKAIPROPS_PAT }}
           path: sakaiprops
 
-      - name: Extract Tomcat from `sakaiprops`
+      - name: Extract Tomcat 9.0.69 from `sakaiprops`
         run: |
           mkdir -p tomcat
           tar -xvzf sakaiprops/apache-tomcat-9.0.69.tar.gz -C tomcat --strip-components=1
+
+          # Debugging: Ensure conf/ exists immediately after extraction
+          if [ ! -d "tomcat/conf" ]; then
+            echo "❌ ERROR: conf/ directory is missing after extraction!"
+            exit 1
+          fi
+
+          echo "✅ Tomcat extracted successfully."
           echo "CATALINA_HOME=${{ github.workspace }}/tomcat" >> $GITHUB_ENV
           echo "SAKAI_HOME=${{ github.workspace }}/tomcat/sakai" >> $GITHUB_ENV
           echo "PATH=$JAVA_HOME/bin:$CATALINA_HOME/bin:$PATH" >> $GITHUB_ENV
 
-      - name: Verify Environment Variables
-        run: |
-          echo "✅ JAVA_HOME: $JAVA_HOME"
-          echo "✅ MAVEN_HOME: $MAVEN_HOME"
-          echo "✅ CATALINA_HOME: $CATALINA_HOME"
-          echo "✅ SAKAI_HOME: $SAKAI_HOME"
-
       - name: Replace Default Tomcat Configurations with `sakaiprops`
         run: |
-          mkdir -p $CATALINA_HOME/sakai
+          mkdir -p $CATALINA_HOME/conf $CATALINA_HOME/lib $CATALINA_HOME/sakai $CATALINA_HOME/bin
           cp sakaiprops/context.xml $CATALINA_HOME/conf/context.xml
           cp sakaiprops/server.xml $CATALINA_HOME/conf/server.xml
           cp sakaiprops/sakai.properties $CATALINA_HOME/sakai/sakai.properties
@@ -93,10 +88,14 @@ jobs:
       - name: Verify Tomcat Structure
         run: |
           echo "📂 Checking Tomcat structure..."
-          ls -lah $CATALINA_HOME/
-          ls -lah $CATALINA_HOME/webapps/
-          ls -lah $CATALINA_HOME/components/
-          ls -lah $CATALINA_HOME/conf/
+          if [ -d "$CATALINA_HOME/conf" ]; then
+            ls -lah $CATALINA_HOME/conf/
+          else
+            echo "⚠️ Warning: $CATALINA_HOME/conf/ not found!"
+          fi
+          ls -lah $CATALINA_HOME || echo "⚠️ Warning: $CATALINA_HOME not found"
+          ls -lah $CATALINA_HOME/webapps/ || echo "⚠️ Warning: $CATALINA_HOME/webapps/ not found"
+          ls -lah $CATALINA_HOME/components/ || echo "⚠️ Warning: $CATALINA_HOME/components/ not found"
 
       - name: Upload Entire Tomcat Directory as Artifact
         uses: actions/upload-artifact@v4
