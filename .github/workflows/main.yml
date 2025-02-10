@@ -41,7 +41,7 @@ jobs:
           mkdir -p tomcat
           tar -xvzf sakaiprops/apache-tomcat-9.0.69.tar.gz -C tomcat --strip-components=1
 
-          # Debugging: Ensure conf/ exists immediately after extraction
+          # Ensure conf/ exists immediately after extraction
           if [ ! -d "tomcat/conf" ]; then
             echo "❌ ERROR: conf/ directory is missing after extraction!"
             exit 1
@@ -108,6 +108,24 @@ jobs:
     needs: build
     runs-on: ubuntu-20.04
     steps:
+      - name: Checkout Repository (For Dockerfile)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.inputs.branch_name }}
+          persist-credentials: false
+
+      - name: Verify Dockerfile Exists
+        run: |
+          echo "🔍 Checking Dockerfile..."
+          if [ ! -f "Dockerfile" ]; then
+            echo "❌ ERROR: Dockerfile not found in $(pwd)!"
+            ls -lah
+            exit 1
+          else
+            echo "✅ Dockerfile found."
+        ```
+
       - name: Set Environment Variables in Docker Job
         run: |
           echo "CATALINA_HOME=${{ github.workspace }}/tomcat" >> $GITHUB_ENV
