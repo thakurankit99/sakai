@@ -14,13 +14,18 @@ RUN mkdir -p /opt/tomcat \
     && tar -xvzf /opt/tomcat/tomcat.tar.gz -C /opt/tomcat --strip-components 1 \
     && rm -f /opt/tomcat/tomcat.tar.gz
 
-# Set environment variables for Tomcat
+# Set environment variables
+ENV JAVA_HOME=/usr/lib/jvm/java-11-openjdk-amd64
 ENV CATALINA_HOME=/opt/tomcat
-ENV PATH=$CATALINA_HOME/bin:$PATH
-ENV SAKAI_HOME=$CATALINA_HOME/sakai
+ENV SAKAI_HOME=/opt/tomcat/sakai
+ENV PATH=$JAVA_HOME/bin:$CATALINA_HOME/bin:$PATH
 
 # Ensure required directories exist
 RUN mkdir -p $CATALINA_HOME/components $SAKAI_HOME $CATALINA_HOME/lib
+
+# Copy Sakai components and webapps
+COPY components/ $CATALINA_HOME/components/
+COPY webapps/ $CATALINA_HOME/webapps/
 
 # Copy essential configuration files
 COPY context.xml $CATALINA_HOME/conf/context.xml
@@ -39,5 +44,5 @@ EXPOSE 8181
 HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
     CMD curl -f http://localhost:8181 || exit 1
 
-# Start Tomcat using startup.sh (Recommended by Sakai)
-CMD ["sh", "-c", "/opt/tomcat/bin/startup.sh && tail -f /opt/tomcat/logs/catalina.out"]
+# Start Tomcat using catalina.sh (Recommended for Sakai)
+CMD ["sh", "-c", "$CATALINA_HOME/bin/catalina.sh run && tail -f $CATALINA_HOME/logs/catalina.out"]
