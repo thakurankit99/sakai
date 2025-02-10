@@ -41,7 +41,7 @@ jobs:
 
       - name: Build and Deploy Sakai
         run: |
-          mvn clean install sakai:deploy -o \
+          mvn clean install sakai:deploy \
             -DresolveDependenciesInParallel \
             -Dbuildcache -B \
             -Dmaven.tomcat.home=$CATALINA_HOME \
