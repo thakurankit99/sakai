@@ -12,12 +12,6 @@ jobs:
   build:
     runs-on: ubuntu-20.04
     steps:
-      - name: Checkout Sakai Repository
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-          ref: ${{ github.event.inputs.branch_name }}
-
       - name: Set Up JDK 11
         uses: actions/setup-java@v4
         with:
@@ -28,27 +22,66 @@ jobs:
       - name: Verify Java Installation
         run: |
           echo "🔍 Checking Java Environment..."
-          echo "JAVA_HOME: $JAVA_HOME"
-          echo "PATH: $PATH"
           java -version
 
-      - name: Cache Maven Dependencies
-        uses: actions/cache@v4
-        with:
-          path: ~/.m2/repository
-          key: ${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
-          restore-keys: |
-            ${{ runner.os }}-maven-
-
-      - name: Set Environment Variables
+      - name: Install Maven 3.8.4
         run: |
+          wget https://archive.apache.org/dist/maven/maven-3/3.8.4/binaries/apache-maven-3.8.4-bin.tar.gz
+          sudo tar -xvzf apache-maven-3.8.4-bin.tar.gz -C /opt
+          sudo mv /opt/apache-maven-3.8.4 /opt/maven
+          echo "MAVEN_HOME=/opt/maven" >> $GITHUB_ENV
+          echo "PATH=$MAVEN_HOME/bin:$PATH" >> $GITHUB_ENV
+          source $GITHUB_ENV
+
+      - name: Verify Maven Installation
+        run: mvn -version
+
+      - name: Install Tomcat 9.0.69
+        run: |
+          mkdir -p tomcat
+          wget https://downloads.apache.org/tomcat/tomcat-9/v9.0.69/bin/apache-tomcat-9.0.69.tar.gz
+          tar -xvzf apache-tomcat-9.0.69.tar.gz -C tomcat --strip-components 1
           echo "CATALINA_HOME=${{ github.workspace }}/tomcat" >> $GITHUB_ENV
           echo "SAKAI_HOME=${{ github.workspace }}/tomcat/sakai" >> $GITHUB_ENV
           echo "PATH=$JAVA_HOME/bin:$CATALINA_HOME/bin:$PATH" >> $GITHUB_ENV
 
-      - name: Build and Deploy Sakai
+      - name: Verify Environment Variables
         run: |
-          mkdir -p tomcat/webapps tomcat/components tomcat/sakai
+          echo "✅ JAVA_HOME: $JAVA_HOME"
+          echo "✅ MAVEN_HOME: $MAVEN_HOME"
+          echo "✅ CATALINA_HOME: $CATALINA_HOME"
+          echo "✅ SAKAI_HOME: $SAKAI_HOME"
+
+      - name: Checkout `sakaiprops` and Place Configurations
+        uses: actions/checkout@v4
+        with:
+          repository: thakurankit99/sakaiprops
+          ref: main
+          token: ${{ secrets.SAKAIPROPS_PAT }}
+          path: sakaiprops
+
+      - name: Replace Default Tomcat Configurations with `sakaiprops`
+        run: |
+          cp sakaiprops/context.xml tomcat/conf/context.xml
+          cp sakaiprops/server.xml tomcat/conf/server.xml
+          cp sakaiprops/sakai.properties tomcat/sakai/sakai.properties
+          cp sakaiprops/mysql-connector-j-8.4.0.jar tomcat/lib/mysql-connector-j-8.4.0.jar
+          cp sakaiprops/setenv.sh tomcat/bin/setenv.sh
+          chmod +x tomcat/bin/setenv.sh
+
+      - name: Checkout Sakai 23.x Repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.inputs.branch_name }}
+
+      - name: Build Sakai `master` POM
+        run: |
+          cd master
+          mvn clean install
+
+      - name: Build Full Sakai Project
+        run: |
           mvn clean install sakai:deploy \
             -DresolveDependenciesInParallel \
             -Dbuildcache -B \
@@ -58,6 +91,14 @@ jobs:
             -Djava.net.preferIPv4Stack=true \
             -Dmaven.test.skip=true \
             -Dsakai.cleanup=true | tee build.log
+
+      - name: Verify Tomcat Structure
+        run: |
+          echo "📂 Checking Tomcat structure..."
+          ls -lah tomcat/
+          ls -lah tomcat/webapps/
+          ls -lah tomcat/components/
+          ls -lah tomcat/conf/
 
       - name: Upload Entire Tomcat Directory as Artifact
         uses: actions/upload-artifact@v4
@@ -70,43 +111,16 @@ jobs:
     needs: build
     runs-on: ubuntu-20.04
     steps:
-      - name: Checkout Repository (For Dockerfile)
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 1
-          ref: ${{ github.event.inputs.branch_name }}
-
-      - name: Download All Sakai Build Artifacts
+      - name: Download Sakai Build Artifacts
         uses: actions/download-artifact@v4
         with:
           name: sakai-build
           path: tomcat/
 
-      - name: Checkout sakaiprops Repository
-        uses: actions/checkout@v4
-        with:
-          repository: thakurankit99/sakaiprops
-          ref: main
-          token: ${{ secrets.SAKAIPROPS_PAT }}
-          path: sakaiprops
-
-      - name: Ensure sakaiprops Files Are Placed Correctly
-        run: |
-          mkdir -p tomcat/conf tomcat/lib tomcat/sakai tomcat/bin
-          cp sakaiprops/context.xml tomcat/conf/context.xml
-          cp sakaiprops/server.xml tomcat/conf/server.xml
-          cp sakaiprops/sakai.properties tomcat/sakai/sakai.properties
-          cp sakaiprops/mysql-connector-j-8.4.0.jar tomcat/lib/mysql-connector-j-8.4.0.jar
-          cp sakaiprops/setenv.sh tomcat/bin/setenv.sh
-          chmod +x tomcat/bin/setenv.sh
-
       - name: Build Docker Image
         run: |
           echo "✅ Building Docker image..."
           docker build --no-cache -t ankitosm/sakai:${{ github.event.inputs.branch_name }} .
-
-      - name: Log in to Docker Hub
-        run: echo "${{ secrets.DOCKER_HUB_PASSWORD }}" | docker login -u "${{ secrets.DOCKER_HUB_USERNAME }}" --password-stdin
 
       - name: Push Docker Image to Docker Hub
         run: |
@@ -124,18 +138,11 @@ jobs:
           username: ${{ secrets.VPS_USER }}
           password: ${{ secrets.VPS_PASSWORD }}
           script: |
-            echo "🔄 Pulling latest Sakai image..."
             docker pull ankitosm/sakai:${{ github.event.inputs.branch_name }}
-
-            echo "🚀 Stopping and removing old container (if any)..."
             docker rm -f sakai-app || true
-
-            echo "🚀 Starting new Sakai container..."
             docker run -d --name sakai-app \
               --network=sakai_default \
               -p 8181:8181 \
-              -e CATALINA_HOME=/opt/tomcat \
-              -e SAKAI_HOME=/opt/tomcat/sakai \
+              -e CATALINA_HOME=/tomcat \
+              -e SAKAI_HOME=/tomcat/sakai \
               ankitosm/sakai:${{ github.event.inputs.branch_name }}
-
-            echo "✅ Deployment complete! Sakai should be running on http://${{ secrets.VPS_HOST }}:8181"
