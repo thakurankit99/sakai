@@ -45,7 +45,7 @@ jobs:
       - name: Extract Tomcat from `sakaiprops`
         run: |
           mkdir -p tomcat
-          tar -xvzf sakaiprops/apache-tomcat-9.0.69.tar.gz -C tomcat --strip-components 1
+          tar -xvzf sakaiprops/apache-tomcat-9.0.69.tar.gz -C tomcat --strip-components=1
           echo "CATALINA_HOME=${{ github.workspace }}/tomcat" >> $GITHUB_ENV
           echo "SAKAI_HOME=${{ github.workspace }}/tomcat/sakai" >> $GITHUB_ENV
           echo "PATH=$JAVA_HOME/bin:$CATALINA_HOME/bin:$PATH" >> $GITHUB_ENV
