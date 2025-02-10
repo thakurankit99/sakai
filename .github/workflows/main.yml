@@ -36,7 +36,7 @@ jobs:
       - name: Set Environment Variables
         run: |
           echo "CATALINA_HOME=/opt/tomcat" >> $GITHUB_ENV
-          echo "SAKAI_HOME=$CATALINA_HOME/sakai" >> $GITHUB_ENV
+          echo "SAKAI_HOME=/opt/tomcat/sakai" >> $GITHUB_ENV
 
       - name: Build Master POM
         run: |
@@ -45,12 +45,12 @@ jobs:
 
       - name: Build and Deploy Sakai
         run: |
-          mkdir -p $CATALINA_HOME/sakai
+          mkdir -p /opt/tomcat/sakai
           mvn clean install sakai:deploy \
             -DresolveDependenciesInParallel \
             -Dbuildcache -B \
-            -Dmaven.tomcat.home=$CATALINA_HOME \
-            -Dsakai.home=$CATALINA_HOME/sakai \
+            -Dmaven.tomcat.home=/opt/tomcat \
+            -Dsakai.home=/opt/tomcat/sakai \
             -Djava.net.preferIPv4Stack=true \
             -Dmaven.test.skip=true \
             -Dsakai.cleanup=true | tee build.log
@@ -65,18 +65,18 @@ jobs:
       - name: Verify Components & Webapps Are Deployed
         run: |
           echo "📂 Checking /opt/tomcat/components..."
-          ls -lah $CATALINA_HOME/components || exit 1
+          ls -lah /opt/tomcat/components || exit 1
 
           echo "📂 Checking /opt/tomcat/webapps..."
-          ls -lah $CATALINA_HOME/webapps || exit 1
+          ls -lah /opt/tomcat/webapps || exit 1
 
       - name: Upload Components & Webapps as Artifacts
         uses: actions/upload-artifact@v4
         with:
           name: sakai-build
           path: |
-            $CATALINA_HOME/webapps/
-            $CATALINA_HOME/components/
+            /opt/tomcat/webapps/
+            /opt/tomcat/components/
           compression-level: 0
 
   docker:
@@ -162,6 +162,8 @@ jobs:
             docker run -d --name sakai-app \
               --network=sakai_default \
               -p 8181:8181 \
+              -e CATALINA_HOME=/opt/tomcat \
+              -e SAKAI_HOME=/opt/tomcat/sakai \
               ankitosm/sakai:${{ github.event.inputs.branch_name }}
 
             echo "✅ Deployment complete! Sakai should be running on http://${{ secrets.VPS_HOST }}:8181"
