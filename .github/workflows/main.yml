@@ -55,9 +55,9 @@ jobs:
         run: |
           echo "🔍 Verifying required folders..."
           ls -lah $CATALINA_HOME/components || echo "⚠️ components folder missing!"
-          ls -lah $CATALINA_HOME/webapp || echo "⚠️ webapp folder missing!"
+          ls -lah $CATALINA_HOME/webapps || echo "⚠️ webapps folder missing!"
 
-      - name: Package Tomcat Directory (Including Components and Webapp)
+      - name: Package Tomcat Directory (Including Components and Webapps)
         run: |
           echo "📦 Packing entire Tomcat directory..."
           tar -czvf tomcat-package.tar.gz -C $CATALINA_HOME .
