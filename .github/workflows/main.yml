@@ -56,8 +56,9 @@ jobs:
           echo "🔍 Verifying required folders..."
           ls -lah $CATALINA_HOME/components || echo "⚠️ components folder missing!"
           ls -lah $CATALINA_HOME/webapps || echo "⚠️ webapps folder missing!"
+          ls -lah $CATALINA_HOME/lib || echo "⚠️ lib folder missing!"
 
-      - name: Package Tomcat Directory (Including Components and Webapps)
+      - name: Package Tomcat Directory (Including Components and Webapp)
         run: |
           echo "📦 Packing entire Tomcat directory..."
           tar -czvf tomcat-package.tar.gz -C $CATALINA_HOME .
@@ -80,15 +81,23 @@ jobs:
           fetch-depth: 1
           ref: ${{ github.event.inputs.branch_name }}
 
-      - name: Download Tomcat Package
+      - name: Download Tomcat Package (Built with Sakai)
         uses: actions/download-artifact@v4
         with:
           name: tomcat-package
-          path: tomcat/
+          path: .
 
-      - name: Build Docker Image (Preserving Components & Webapp)
+      - name: Ensure Artifact Exists
         run: |
-          echo "✅ Building Docker image..."
+          ls -lah
+          if [ ! -f "tomcat-package.tar.gz" ]; then
+            echo "❌ tomcat-package.tar.gz not found!"
+            exit 1
+          fi
+
+      - name: Build Docker Image
+        run: |
+          echo "✅ Building Docker image with pre-built Tomcat..."
           docker build --no-cache -t ankitosm/sakai:${{ github.event.inputs.branch_name }} .
 
       - name: Log in to Docker Hub
