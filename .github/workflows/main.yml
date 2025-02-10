@@ -88,19 +88,15 @@ jobs:
       - name: Verify Tomcat Structure
         run: |
           echo "📂 Checking Tomcat structure..."
-          if [ -d "$CATALINA_HOME/conf" ]; then
-            ls -lah $CATALINA_HOME/conf/
-          else
-            echo "⚠️ Warning: $CATALINA_HOME/conf/ not found!"
-          fi
           ls -lah $CATALINA_HOME || echo "⚠️ Warning: $CATALINA_HOME not found"
+          ls -lah $CATALINA_HOME/conf/ || echo "⚠️ Warning: $CATALINA_HOME/conf/ not found"
           ls -lah $CATALINA_HOME/webapps/ || echo "⚠️ Warning: $CATALINA_HOME/webapps/ not found"
           ls -lah $CATALINA_HOME/components/ || echo "⚠️ Warning: $CATALINA_HOME/components/ not found"
 
       - name: Archive Tomcat Directory
         run: |
           tar -czvf ${{ runner.temp }}/sakai-build.tar.gz -C $CATALINA_HOME .
-      
+
       - name: Upload Entire Tomcat Directory as Artifact
         uses: actions/upload-artifact@v4
         with:
@@ -112,6 +108,11 @@ jobs:
     needs: build
     runs-on: ubuntu-20.04
     steps:
+      - name: Set Environment Variables in Docker Job
+        run: |
+          echo "CATALINA_HOME=${{ github.workspace }}/tomcat" >> $GITHUB_ENV
+          echo "SAKAI_HOME=${{ github.workspace }}/tomcat/sakai" >> $GITHUB_ENV
+
       - name: Download Sakai Build Artifacts
         uses: actions/download-artifact@v4
         with:
@@ -127,6 +128,7 @@ jobs:
           fi
 
           echo "✅ Extracting Sakai Build..."
+          mkdir -p $CATALINA_HOME
           tar -xzvf "${{ runner.temp }}/sakai-build/sakai-build.tar.gz" -C "$CATALINA_HOME"
 
       - name: Build Docker Image
