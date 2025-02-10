@@ -12,97 +12,57 @@ jobs:
   build:
     runs-on: ubuntu-20.04
     steps:
-      - name: Set Up Java 11 (Preinstalled by GitHub)
-        uses: actions/setup-java@v4
-        with:
-          distribution: "temurin"
-          java-version: "11"
-
-      - name: Verify Java Installation
-        run: |
-          echo "🔍 Checking Java Environment..."
-          java -version
-
-      - name: Use GitHub’s Preinstalled Maven
-        run: |
-          echo "Using GitHub's preinstalled Maven:"
-          mvn -version
-
-      - name: Checkout `sakaiprops` Repository
-        uses: actions/checkout@v4
-        with:
-          repository: thakurankit99/sakaiprops
-          ref: main
-          token: ${{ secrets.SAKAIPROPS_PAT }}
-          path: sakaiprops
-
-      - name: Extract Tomcat 9.0.69 from `sakaiprops`
-        run: |
-          mkdir -p tomcat
-          tar -xvzf sakaiprops/apache-tomcat-9.0.69.tar.gz -C tomcat --strip-components=1
-
-          # Ensure conf/ exists immediately after extraction
-          if [ ! -d "tomcat/conf" ]; then
-            echo "❌ ERROR: conf/ directory is missing after extraction!"
-            exit 1
-          fi
-
-          echo "✅ Tomcat extracted successfully."
-          echo "CATALINA_HOME=${{ github.workspace }}/tomcat" >> $GITHUB_ENV
-          echo "SAKAI_HOME=${{ github.workspace }}/tomcat/sakai" >> $GITHUB_ENV
-          echo "PATH=$JAVA_HOME/bin:$CATALINA_HOME/bin:$PATH" >> $GITHUB_ENV
-
-      - name: Replace Default Tomcat Configurations with `sakaiprops`
-        run: |
-          mkdir -p $CATALINA_HOME/conf $CATALINA_HOME/lib $CATALINA_HOME/sakai $CATALINA_HOME/bin
-          cp sakaiprops/context.xml $CATALINA_HOME/conf/context.xml
-          cp sakaiprops/server.xml $CATALINA_HOME/conf/server.xml
-          cp sakaiprops/sakai.properties $CATALINA_HOME/sakai/sakai.properties
-          cp sakaiprops/mysql-connector-j-8.4.0.jar $CATALINA_HOME/lib/mysql-connector-j-8.4.0.jar
-          cp sakaiprops/setenv.sh $CATALINA_HOME/bin/setenv.sh
-          chmod +x $CATALINA_HOME/bin/setenv.sh
-
-      - name: Checkout Sakai 23.x Repository
+      - name: Checkout Sakai Repository
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
           ref: ${{ github.event.inputs.branch_name }}
 
-      - name: Build Sakai `master` POM
-        run: |
-          cd master
-          mvn clean install
+      - name: Set Up JDK 11
+        uses: actions/setup-java@v4
+        with:
+          distribution: "temurin"
+          java-version: "11"
+          architecture: x64
 
-      - name: Build Full Sakai Project
+      - name: Cache Maven Dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.m2/repository
+          key: ${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
+          restore-keys: |
+            ${{ runner.os }}-maven-
+      - name: Set Environment Variables
         run: |
+          echo "CATALINA_HOME=/opt/tomcat" >> $GITHUB_ENV
+          echo "SAKAI_HOME=$CATALINA_HOME/sakai" >> $GITHUB_ENV
+      - name: Build and Deploy Sakai
+        run: |
+          mkdir -p $CATALINA_HOME/sakai
           mvn clean install sakai:deploy \
-            -DresolveDependenciesInParallel \
-            -Dbuildcache -B \
             -Dmaven.tomcat.home=$CATALINA_HOME \
             -Dsakai.home=$CATALINA_HOME/sakai \
-            -Dsakai.components.dir=$CATALINA_HOME/components \
             -Djava.net.preferIPv4Stack=true \
             -Dmaven.test.skip=true \
-            -Dsakai.cleanup=true | tee build.log
-
-      - name: Verify Tomcat Structure
+            -Dmaven.cleanup=true | tee build.log
+      - name: Check for Build Errors
+        if: failure()
         run: |
-          echo "📂 Checking Tomcat structure..."
-          ls -lah $CATALINA_HOME || echo "⚠️ Warning: $CATALINA_HOME not found"
-          ls -lah $CATALINA_HOME/conf/ || echo "⚠️ Warning: $CATALINA_HOME/conf/ not found"
-          ls -lah $CATALINA_HOME/webapps/ || echo "⚠️ Warning: $CATALINA_HOME/webapps/ not found"
-          ls -lah $CATALINA_HOME/components/ || echo "⚠️ Warning: $CATALINA_HOME/components/ not found"
-
-      - name: Archive Tomcat Directory
+          echo "❌ Build failed! Showing last 50 lines of logs..."
+          tail -n 50 build.log
+          exit 1
+      - name: Collect All WAR Files
         run: |
-          tar -czvf ${{ runner.temp }}/sakai-build.tar.gz -C $CATALINA_HOME .
-
-      - name: Upload Entire Tomcat Directory as Artifact
+          echo "🔍 Collecting all .war files..."
+          mkdir -p sakai-webapps
+          find $CATALINA_HOME/webapps -name "*.war" -exec cp {} sakai-webapps/ \;
+          ls -lah sakai-webapps | tee collected_wars.log
+      - name: Upload WAR Files as Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: sakai-build
-          path: ${{ runner.temp }}/sakai-build.tar.gz
-          compression-level: 9
+          name: sakai-wars
+          path: sakai-webapps/
+          compression-level: 0
 
   docker:
     needs: build
@@ -111,53 +71,42 @@ jobs:
       - name: Checkout Repository (For Dockerfile)
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0
+          fetch-depth: 1
           ref: ${{ github.event.inputs.branch_name }}
-          persist-credentials: false
 
-      - name: Verify Dockerfile Exists
-        run: |
-          echo "🔍 Checking Dockerfile..."
-          if [ ! -f "Dockerfile" ]; then
-            echo "❌ ERROR: Dockerfile not found in $(pwd)!"
-            ls -lah
-            exit 1
-          else
-            echo "✅ Dockerfile found."
-
-      - name: Set Environment Variables in Docker Job
-        run: |
-          echo "CATALINA_HOME=${{ github.workspace }}/tomcat" >> $GITHUB_ENV
-          echo "SAKAI_HOME=${{ github.workspace }}/tomcat/sakai" >> $GITHUB_ENV
-
-      - name: Download Sakai Build Artifacts
+      - name: Download All WAR Files
         uses: actions/download-artifact@v4
         with:
-          name: sakai-build
-          path: ${{ runner.temp }}/sakai-build
+          name: sakai-wars
+          path: sakai-webapps/
 
-      - name: Extract Sakai Build
+      - name: Checkout sakaiprops Repository
+        uses: actions/checkout@v4
+        with:
+          repository: thakurankit99/sakaiprops
+          ref: main
+          token: ${{ secrets.SAKAIPROPS_PAT }}
+          path: sakaiprops
+
+      - name: Prepare sakaiprops Files for Docker Build
         run: |
-          echo "🔍 Checking if sakai-build.tar.gz exists..."
-          if [ ! -f "${{ runner.temp }}/sakai-build/sakai-build.tar.gz" ]; then
-            echo "❌ ERROR: Artifact sakai-build.tar.gz not found!"
-            exit 1
-          fi
-
-          echo "✅ Extracting Sakai Build..."
-          mkdir -p $CATALINA_HOME
-          tar -xzvf "${{ runner.temp }}/sakai-build/sakai-build.tar.gz" -C "$CATALINA_HOME"
-
+          cp sakaiprops/apache-tomcat-9.0.69.tar.gz ./
+          cp sakaiprops/sakai.properties ./
+          cp sakaiprops/context.xml ./
+          cp sakaiprops/server.xml ./
+          cp sakaiprops/mysql-connector-j-8.4.0.jar ./
+          cp sakaiprops/setenv.sh ./
       - name: Build Docker Image
         run: |
           echo "✅ Building Docker image..."
           docker build --no-cache -t ankitosm/sakai:${{ github.event.inputs.branch_name }} .
+      - name: Log in to Docker Hub
+        run: echo "${{ secrets.DOCKER_HUB_PASSWORD }}" | docker login -u "${{ secrets.DOCKER_HUB_USERNAME }}" --password-stdin
 
       - name: Push Docker Image to Docker Hub
         run: |
           echo "✅ Pushing Docker image..."
           docker push ankitosm/sakai:${{ github.event.inputs.branch_name }}
-
   deploy:
     needs: docker
     runs-on: ubuntu-20.04
@@ -169,11 +118,25 @@ jobs:
           username: ${{ secrets.VPS_USER }}
           password: ${{ secrets.VPS_PASSWORD }}
           script: |
+            echo "🔄 Pulling latest Sakai image..."
             docker pull ankitosm/sakai:${{ github.event.inputs.branch_name }}
-            docker rm -f sakai-app || true
+            echo "🔄 Ensuring Docker network exists..."
+            docker network create sakai_default || true
+            echo "🛑 Stopping existing Sakai container..."
+            docker stop sakai-app || true
+            docker rm sakai-app || true
+            echo "🔄 Setting up sakaiprops..."
+            rm -rf ~/sakai || true
+            mkdir -p ~/sakai
+            git clone https://${{ secrets.SAKAIPROPS_PAT }}@github.com/thakurankit99/sakaiprops.git ~/sakai
+            cp ~/sakai/sakai.properties ~/sakai/context.xml ~/sakai/server.xml ~/sakai/mysql-connector-j-8.4.0.jar ~/sakai/
+            echo "🚀 Starting new Sakai container..."
             docker run -d --name sakai-app \
               --network=sakai_default \
-              -p 8181:8181 \
-              -e CATALINA_HOME=/tomcat \
-              -e SAKAI_HOME=/tomcat/sakai \
+              -p 8080:8080 \
+              -v ~/sakai/sakai.properties:/opt/tomcat/sakai/sakai.properties \
+              -v ~/sakai/context.xml:/opt/tomcat/conf/context.xml \
+              -v ~/sakai/server.xml:/opt/tomcat/conf/server.xml \
+              -v ~/sakai/mysql-connector-j-8.4.0.jar:/opt/tomcat/lib/mysql-connector-j-8.4.0.jar \
               ankitosm/sakai:${{ github.event.inputs.branch_name }}
+            echo "✅ Deployment complete! Sakai should be running on http://${{ secrets.VPS_HOST }}:8080"
