@@ -62,18 +62,21 @@ jobs:
           tail -n 50 build.log
           exit 1
 
-      - name: Collect All WAR Files
+      - name: Verify Components & Webapps Are Deployed
         run: |
-          echo "🔍 Collecting all .war files..."
-          mkdir -p sakai-webapps
-          find $CATALINA_HOME/webapps -name "*.war" -exec cp {} sakai-webapps/ \;
-          ls -lah sakai-webapps | tee collected_wars.log
+          echo "📂 Checking /opt/tomcat/components..."
+          ls -lah $CATALINA_HOME/components || exit 1
 
-      - name: Upload WAR Files as Artifact
+          echo "📂 Checking /opt/tomcat/webapps..."
+          ls -lah $CATALINA_HOME/webapps || exit 1
+
+      - name: Upload Components & Webapps as Artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: sakai-wars
-          path: sakai-webapps/
+          name: sakai-build
+          path: |
+            $CATALINA_HOME/webapps/
+            $CATALINA_HOME/components/
           compression-level: 0
 
   docker:
@@ -86,16 +89,21 @@ jobs:
           fetch-depth: 1
           ref: ${{ github.event.inputs.branch_name }}
 
-      - name: Download All WAR Files
+      - name: Download All Sakai Build Artifacts
         uses: actions/download-artifact@v4
         with:
-          name: sakai-wars
-          path: sakai-webapps/
+          name: sakai-build
+          path: .
 
-      - name: Verify WAR Files Before Docker Build
+      - name: Verify Downloaded Files Before Docker Build
         run: |
-          if [ ! -d "sakai-webapps" ] || [ -z "$(ls -A sakai-webapps)" ]; then
-            echo "❌ WAR files not found! Failing build."
+          if [ ! -d "webapps" ] || [ -z "$(ls -A webapps)" ]; then
+            echo "❌ webapps directory is empty! Failing build."
+            exit 1
+          fi
+
+          if [ ! -d "components" ] || [ -z "$(ls -A components)" ]; then
+            echo "❌ components directory is empty! Failing build."
             exit 1
           fi
 
@@ -113,57 +121,4 @@ jobs:
           cp sakaiprops/sakai.properties ./
           cp sakaiprops/context.xml ./
           cp sakaiprops/server.xml ./
-          cp sakaiprops/mysql-connector-j-8.4.0.jar ./
-          cp sakaiprops/setenv.sh ./
-
-      - name: Build Docker Image
-        run: |
-          echo "✅ Building Docker image..."
-          docker build --no-cache -t ankitosm/sakai:${{ github.event.inputs.branch_name }} .
-
-      - name: Log in to Docker Hub
-        run: echo "${{ secrets.DOCKER_HUB_PASSWORD }}" | docker login -u "${{ secrets.DOCKER_HUB_USERNAME }}" --password-stdin
-
-      - name: Push Docker Image to Docker Hub
-        run: |
-          echo "✅ Pushing Docker image..."
-          docker push ankitosm/sakai:${{ github.event.inputs.branch_name }}
-
-  deploy:
-    needs: docker
-    runs-on: ubuntu-20.04
-    steps:
-      - name: Deploy to VPS
-        uses: appleboy/ssh-action@v0.1.6
-        with:
-          host: ${{ secrets.VPS_HOST }}
-          username: ${{ secrets.VPS_USER }}
-          password: ${{ secrets.VPS_PASSWORD }}
-          script: |
-            echo "🔄 Pulling latest Sakai image..."
-            docker pull ankitosm/sakai:${{ github.event.inputs.branch_name }}
-
-            echo "🔄 Ensuring Docker network exists..."
-            docker network create sakai_default || true
-
-            echo "🛑 Stopping existing Sakai container..."
-            docker stop sakai-app || true
-            docker rm sakai-app || true
-
-            echo "🔄 Setting up sakaiprops..."
-            rm -rf ~/sakai || true
-            mkdir -p ~/sakai
-            git clone https://${{ secrets.SAKAIPROPS_PAT }}@github.com/thakurankit99/sakaiprops.git ~/sakai
-            cp ~/sakai/sakai.properties ~/sakai/context.xml ~/sakai/server.xml ~/sakai/mysql-connector-j-8.4.0.jar ~/sakai/
-
-            echo "🚀 Starting new Sakai container..."
-            docker run -d --name sakai-app \
-              --network=sakai_default \
-              -p 8181:8181 \
-              -v ~/sakai/sakai.properties:/opt/tomcat/sakai/sakai.properties \
-              -v ~/sakai/context.xml:/opt/tomcat/conf/context.xml \
-              -v ~/sakai/server.xml:/opt/tomcat/conf/server.xml \
-              -v ~/sakai/mysql-connector-j-8.4.0.jar:/opt/tomcat/lib/mysql-connector-j-8.4.0.jar \
-              ankitosm/sakai:${{ github.event.inputs.branch_name }}
-
-            echo "✅ Deployment complete! Sakai should be running on http://${{ secrets.VPS_HOST }}:8181"
+      
