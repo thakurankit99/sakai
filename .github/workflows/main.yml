@@ -97,12 +97,16 @@ jobs:
           ls -lah $CATALINA_HOME/webapps/ || echo "⚠️ Warning: $CATALINA_HOME/webapps/ not found"
           ls -lah $CATALINA_HOME/components/ || echo "⚠️ Warning: $CATALINA_HOME/components/ not found"
 
+      - name: Archive Tomcat Directory
+        run: |
+          tar -czvf ${{ runner.temp }}/sakai-build.tar.gz -C $CATALINA_HOME .
+      
       - name: Upload Entire Tomcat Directory as Artifact
         uses: actions/upload-artifact@v4
         with:
           name: sakai-build
-          path: ${{ env.CATALINA_HOME }}/
-          compression-level: 0
+          path: ${{ runner.temp }}/sakai-build.tar.gz
+          compression-level: 9
 
   docker:
     needs: build
@@ -112,7 +116,11 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: sakai-build
-          path: ${{ env.CATALINA_HOME }}/
+          path: ${{ runner.temp }}/sakai-build
+
+      - name: Extract Sakai Build
+        run: |
+          tar -xzvf ${{ runner.temp }}/sakai-build/sakai-build.tar.gz -C $CATALINA_HOME
 
       - name: Build Docker Image
         run: |
