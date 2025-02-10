@@ -41,11 +41,11 @@ COPY setenv.sh /opt/tomcat/bin/setenv.sh
 RUN chmod +x /opt/tomcat/bin/setenv.sh
 
 # Expose Tomcat's HTTP port
-EXPOSE 8080
+EXPOSE 8181
 
 # Healthcheck to verify Tomcat is running
 HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
-    CMD curl -f http://localhost:8080 || exit 1
+    CMD curl -f http://localhost:8181 || exit 1
 
 # Start Tomcat in the foreground
 CMD ["/opt/tomcat/bin/catalina.sh", "run"]
