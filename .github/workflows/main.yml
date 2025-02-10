@@ -25,6 +25,12 @@ jobs:
           java-version: "11"
           architecture: x64
 
+      - name: Set Up Maven (Skip Manual Installation)
+        run: |
+          echo "MAVEN_HOME=/usr/share/maven" >> $GITHUB_ENV
+          echo "PATH=$MAVEN_HOME/bin:$PATH" >> $GITHUB_ENV
+          mvn -version
+
       - name: Cache Maven Dependencies
         uses: actions/cache@v4
         with:
@@ -96,7 +102,7 @@ jobs:
         with:
           name: sakai-build
           path: .
-      
+
       - name: Verify Downloaded Files Before Docker Build
         run: |
           echo "Checking webapps..."
@@ -127,7 +133,6 @@ jobs:
           cp sakaiprops/mysql-connector-j-8.4.0.jar ./
           cp sakaiprops/setenv.sh ./
 
-          # For clarity, rename these build artifacts so Dockerfile can find them easily:
           mv opt/tomcat/webapps webapps
           mv opt/tomcat/components components
 
