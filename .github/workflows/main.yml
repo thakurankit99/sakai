@@ -20,9 +20,7 @@ jobs:
           architecture: x64
 
       - name: Verify Java Installation
-        run: |
-          echo "🔍 Checking Java Environment..."
-          java -version
+        run: java -version
 
       - name: Install Maven 3.8.4
         run: |
@@ -36,11 +34,18 @@ jobs:
       - name: Verify Maven Installation
         run: mvn -version
 
-      - name: Install Tomcat 9.0.69
+      - name: Checkout `sakaiprops` Repository
+        uses: actions/checkout@v4
+        with:
+          repository: thakurankit99/sakaiprops
+          ref: main
+          token: ${{ secrets.SAKAIPROPS_PAT }}
+          path: sakaiprops
+
+      - name: Extract Tomcat from `sakaiprops`
         run: |
           mkdir -p tomcat
-          wget https://downloads.apache.org/tomcat/tomcat-9/v9.0.69/bin/apache-tomcat-9.0.69.tar.gz
-          tar -xvzf apache-tomcat-9.0.69.tar.gz -C tomcat --strip-components 1
+          tar -xvzf sakaiprops/apache-tomcat-9.0.69.tar.gz -C tomcat --strip-components 1
           echo "CATALINA_HOME=${{ github.workspace }}/tomcat" >> $GITHUB_ENV
           echo "SAKAI_HOME=${{ github.workspace }}/tomcat/sakai" >> $GITHUB_ENV
           echo "PATH=$JAVA_HOME/bin:$CATALINA_HOME/bin:$PATH" >> $GITHUB_ENV
@@ -51,14 +56,6 @@ jobs:
           echo "✅ MAVEN_HOME: $MAVEN_HOME"
           echo "✅ CATALINA_HOME: $CATALINA_HOME"
           echo "✅ SAKAI_HOME: $SAKAI_HOME"
-
-      - name: Checkout `sakaiprops` and Place Configurations
-        uses: actions/checkout@v4
-        with:
-          repository: thakurankit99/sakaiprops
-          ref: main
-          token: ${{ secrets.SAKAIPROPS_PAT }}
-          path: sakaiprops
 
       - name: Replace Default Tomcat Configurations with `sakaiprops`
         run: |
