@@ -35,8 +35,10 @@ jobs:
 
       - name: Set Environment Variables
         run: |
+          echo "JAVA_HOME=/usr/lib/jvm/java-11-openjdk-amd64" >> $GITHUB_ENV
           echo "CATALINA_HOME=/opt/tomcat" >> $GITHUB_ENV
           echo "SAKAI_HOME=/opt/tomcat/sakai" >> $GITHUB_ENV
+          echo "PATH=$JAVA_HOME/bin:$CATALINA_HOME/bin:$PATH" >> $GITHUB_ENV
 
       - name: Build Master POM
         run: |
@@ -45,7 +47,7 @@ jobs:
 
       - name: Build and Deploy Sakai
         run: |
-          mkdir -p /opt/tomcat/sakai
+          mkdir -p /opt/tomcat/sakai /opt/tomcat/components
           mvn clean install sakai:deploy \
             -DresolveDependenciesInParallel \
             -Dbuildcache -B \
@@ -66,7 +68,6 @@ jobs:
         run: |
           echo "📂 Checking /opt/tomcat/components..."
           ls -lah /opt/tomcat/components || exit 1
-
           echo "📂 Checking /opt/tomcat/webapps..."
           ls -lah /opt/tomcat/webapps || exit 1
 
@@ -101,7 +102,6 @@ jobs:
             echo "❌ webapps directory is empty! Failing build."
             exit 1
           fi
-
           if [ ! -d "components" ] || [ -z "$(ls -A components)" ]; then
             echo "❌ components directory is empty! Failing build."
             exit 1
