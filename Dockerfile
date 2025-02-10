@@ -6,18 +6,18 @@ FROM openjdk:11-jdk
 
 WORKDIR /tomcat
 
-# Copy the entire Tomcat directory from the build
+# Copy the entire Tomcat directory from the GitHub build
 COPY tomcat /tomcat
 
-# Ensure permissions are set
-RUN chmod -R 755 /tomcat/
+# Ensure scripts have execute permissions
+RUN chmod +x /tomcat/bin/setenv.sh
 
-# Set environment variables
+# Set Environment Variables
 ENV CATALINA_HOME=/tomcat
 ENV PATH=$CATALINA_HOME/bin:$PATH
 
-# Expose Tomcat's HTTP port
+# Expose Tomcat Port
 EXPOSE 8080
 
-# Start Tomcat in the foreground
+# Start Tomcat in Foreground
 CMD ["/tomcat/bin/catalina.sh", "run"]
