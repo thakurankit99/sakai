@@ -78,10 +78,14 @@ jobs:
           cp -r apache-tomcat-9.0.69/bin/* $CATALINA_HOME/bin/
           cp -r apache-tomcat-9.0.69/conf/* $CATALINA_HOME/conf/
           cp -r apache-tomcat-9.0.69/lib/* $CATALINA_HOME/lib/
-          cp -r apache-tomcat-9.0.69/logs/* $CATALINA_HOME/logs/
-          cp -r apache-tomcat-9.0.69/temp/* $CATALINA_HOME/temp/
           cp -r apache-tomcat-9.0.69/webapps/* $CATALINA_HOME/webapps/
-          cp -r apache-tomcat-9.0.69/work/* $CATALINA_HOME/work/
+
+          # Manually create empty directories if they are missing
+          mkdir -p $CATALINA_HOME/logs
+          mkdir -p $CATALINA_HOME/temp
+          mkdir -p $CATALINA_HOME/work
+
+          chmod +x $CATALINA_HOME/bin/*.sh
           
           # Copy configuration files
           cp sakaiprops/sakai.properties $CATALINA_HOME/sakai/
@@ -92,6 +96,15 @@ jobs:
 
           # Set proper permissions
           sudo chown -R $USER:$USER $CATALINA_HOME
+
+      - name: Verify Tomcat Directories
+        run: |
+          echo "🔍 Checking Tomcat directories..."
+          ls -lah $CATALINA_HOME
+          ls -lah $CATALINA_HOME/conf/
+          ls -lah $CATALINA_HOME/logs/
+          ls -lah $CATALINA_HOME/temp/
+          ls -lah $CATALINA_HOME/work/
 
       - name: Package Tomcat Directory
         run: |
