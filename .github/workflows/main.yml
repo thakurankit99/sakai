@@ -62,9 +62,14 @@ jobs:
 
       - name: Package Tomcat Directory (Ensure All Files Are Included)
         run: |
+          echo "📦 Installing Tomcat binaries..."
+          wget https://downloads.apache.org/tomcat/tomcat-9/v9.0.85/bin/apache-tomcat-9.0.85.tar.gz
+          tar xf apache-tomcat-9.0.85.tar.gz
+          cp -r apache-tomcat-9.0.85/bin/* $CATALINA_HOME/bin/
+
           echo "📦 Packing entire Tomcat directory..."
           tar -czvf tomcat-package.tar.gz -C $CATALINA_HOME .
-          ls -lah | tee collected_files.log  # Debugging step to verify archive
+          ls -lah | tee collected_files.log
 
       - name: Upload Tomcat Package as Artifact
         uses: actions/upload-artifact@v4
