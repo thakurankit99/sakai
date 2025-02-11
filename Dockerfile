@@ -29,8 +29,8 @@ ENV PATH=$CATALINA_HOME/bin:$PATH
 COPY setenv.sh /opt/tomcat/bin/setenv.sh
 RUN chmod +x /opt/tomcat/bin/setenv.sh
 
-# Expose Tomcat HTTP and JMX ports
-EXPOSE 8181 8089
+# Expose required ports
+EXPOSE 8181 8089 8005 8443 8009
 
 # Set appropriate permissions
 RUN chown -R 1001:127 /opt/tomcat/webapps /opt/tomcat/work /opt/tomcat/temp /opt/tomcat/logs \
