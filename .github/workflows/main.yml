@@ -166,10 +166,10 @@ jobs:
             echo "🚀 Starting new Sakai container..."
             docker run -d --name sakai-app \
               --network=sakai_default \
-              -p 8080:8080 \
+              -p 8181:8181 \
               -v ~/sakai/sakai.properties:/opt/tomcat/sakai/sakai.properties \
               -v ~/sakai/context.xml:/opt/tomcat/conf/context.xml \
               -v ~/sakai/server.xml:/opt/tomcat/conf/server.xml \
               -v ~/sakai/mysql-connector-j-8.4.0.jar:/opt/tomcat/lib/mysql-connector-j-8.4.0.jar \
               ankitosm/sakai:${{ github.event.inputs.branch_name }}
-            echo "✅ Deployment complete! Sakai should be running on http://${{ secrets.VPS_HOST }}:8080"
+            echo "✅ Deployment complete! Sakai should be running on http://${{ secrets.VPS_HOST }}:8181"
