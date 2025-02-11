@@ -25,19 +25,12 @@ RUN tar -xzvf /opt/tomcat/tomcat-package.tar.gz -C /opt/tomcat \
 ENV CATALINA_HOME=/opt/tomcat
 ENV PATH=$CATALINA_HOME/bin:$PATH
 
-# Copy setenv.sh
-COPY setenv.sh /opt/tomcat/bin/setenv.sh
-RUN chmod +x /opt/tomcat/bin/setenv.sh
-
-# Expose required ports
-EXPOSE 8181 8089 8005 8443 8009
-
 # Set appropriate permissions
 RUN chown -R 1001:127 /opt/tomcat/webapps /opt/tomcat/work /opt/tomcat/temp /opt/tomcat/logs \
     && chmod -R +x /opt/tomcat/bin/*.sh
 
-# Use a non-root user for security
-USER 1001
+# Expose Tomcat HTTP port
+EXPOSE 8181 8089 8005 8443 8009
 
 # Start Tomcat
-CMD ["/opt/tomcat/bin/catalina.sh", "run"]
+CMD ["sh", "-c", "/opt/tomcat/bin/catalina.sh run"]
