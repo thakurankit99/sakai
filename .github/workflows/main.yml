@@ -73,8 +73,15 @@ jobs:
 
           echo "Extracting Tomcat..."
           tar xf sakaiprops/apache-tomcat-9.0.69.tar.gz
+
+          # Copy everything from the extracted Tomcat to CATALINA_HOME
           cp -r apache-tomcat-9.0.69/bin/* $CATALINA_HOME/bin/
-          chmod +x $CATALINA_HOME/bin/*.sh
+          cp -r apache-tomcat-9.0.69/conf/* $CATALINA_HOME/conf/
+          cp -r apache-tomcat-9.0.69/lib/* $CATALINA_HOME/lib/
+          cp -r apache-tomcat-9.0.69/logs/* $CATALINA_HOME/logs/
+          cp -r apache-tomcat-9.0.69/temp/* $CATALINA_HOME/temp/
+          cp -r apache-tomcat-9.0.69/webapps/* $CATALINA_HOME/webapps/
+          cp -r apache-tomcat-9.0.69/work/* $CATALINA_HOME/work/
           
           # Copy configuration files
           cp sakaiprops/sakai.properties $CATALINA_HOME/sakai/
