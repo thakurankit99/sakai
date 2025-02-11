@@ -75,7 +75,7 @@ jobs:
             echo "🚀 Starting new Sakai container..."
             docker run -d --name sakai-app \
               --network=sakai_default \
-              -p 8080:8080 \
+              -p 8181:8181 \
               ankitosm/sakai:${{ github.event.inputs.branch_name }}
 
-            echo "✅ Deployment complete! Sakai should be running on http://${{ secrets.VPS_HOST }}:8080"
+            echo "✅ Deployment complete! Sakai should be running on http://${{ secrets.VPS_HOST }}:8181"
