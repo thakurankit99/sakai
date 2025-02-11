@@ -57,12 +57,14 @@ jobs:
           ls -lah $CATALINA_HOME/components || echo "⚠️ components folder missing!"
           ls -lah $CATALINA_HOME/webapps || echo "⚠️ webapps folder missing!"
           ls -lah $CATALINA_HOME/lib || echo "⚠️ lib folder missing!"
+          ls -lah $CATALINA_HOME/bin || echo "⚠️ bin folder missing!"
+          ls -lah $CATALINA_HOME/conf || echo "⚠️ conf folder missing!"
 
-      - name: Package Tomcat Directory (Including Components and Webapp)
+      - name: Package Tomcat Directory (Ensure All Files Are Included)
         run: |
           echo "📦 Packing entire Tomcat directory..."
           tar -czvf tomcat-package.tar.gz -C $CATALINA_HOME .
-          ls -lah | tee collected_files.log
+          ls -lah | tee collected_files.log  # Debugging step to verify archive
 
       - name: Upload Tomcat Package as Artifact
         uses: actions/upload-artifact@v4
