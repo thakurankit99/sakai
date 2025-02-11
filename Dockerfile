@@ -32,5 +32,5 @@ RUN chown -R 1001:127 /opt/tomcat/webapps /opt/tomcat/work /opt/tomcat/temp /opt
 # Expose Tomcat HTTP port
 EXPOSE 8181 8089 8005 8443 8009
 
-# Start Tomcat
-CMD ["sh", "-c", "/opt/tomcat/bin/catalina.sh run"]
+# Start Tomcat using startup.sh
+CMD ["sh", "-c", "/opt/tomcat/bin/startup.sh && tail -f /opt/tomcat/logs/catalina.out"]
