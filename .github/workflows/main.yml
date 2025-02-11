@@ -38,7 +38,7 @@ jobs:
           echo "CATALINA_HOME=/opt/tomcat" >> $GITHUB_ENV
           echo "SAKAI_HOME=$CATALINA_HOME/sakai" >> $GITHUB_ENV
 
-      - name: Build and Deploy Sakai (Ensure Components and Webapp Populate Naturally)
+      - name: Build and Deploy Sakai
         run: |
           mkdir -p $CATALINA_HOME/sakai
           mvn clean install sakai:deploy \
@@ -48,25 +48,37 @@ jobs:
             -Dmaven.test.skip=true \
             -Dmaven.cleanup=true | tee build.log
 
-          echo "✅ Checking Sakai directory structure..."
-          ls -lah $CATALINA_HOME
-
-      - name: Verify Components and Webapp Folders
+      - name: Check for Build Errors
+        if: failure()
         run: |
-          echo "🔍 Verifying required folders..."
-          ls -lah $CATALINA_HOME/components || echo "⚠️ components folder missing!"
-          ls -lah $CATALINA_HOME/webapps || echo "⚠️ webapps folder missing!"
-          ls -lah $CATALINA_HOME/lib || echo "⚠️ lib folder missing!"
-          ls -lah $CATALINA_HOME/bin || echo "⚠️ bin folder missing!"
-          ls -lah $CATALINA_HOME/conf || echo "⚠️ conf folder missing!"
+          echo "❌ Build failed! Showing last 50 lines of logs..."
+          tail -n 50 build.log
+          exit 1
 
-      - name: Package Tomcat Directory (Ensure All Files Are Included)
+      - name: Checkout sakaiprops Repository
+        uses: actions/checkout@v4
+        with:
+          repository: thakurankit99/sakaiprops
+          ref: main
+          token: ${{ secrets.SAKAIPROPS_PAT }}
+          path: sakaiprops
+
+      - name: Setup Tomcat with sakaiprops
         run: |
-          echo "📦 Installing Tomcat binaries..."
-          wget https://downloads.apache.org/tomcat/tomcat-9/v9.0.85/bin/apache-tomcat-9.0.85.tar.gz
-          tar xf apache-tomcat-9.0.85.tar.gz
-          cp -r apache-tomcat-9.0.85/bin/* $CATALINA_HOME/bin/
+          echo "📦 Setting up Tomcat with sakaiprops..."
+          tar xf sakaiprops/apache-tomcat-9.0.69.tar.gz
+          cp -r apache-tomcat-9.0.69/bin/* $CATALINA_HOME/bin/
+          chmod +x $CATALINA_HOME/bin/*.sh
+          
+          # Copy configuration files
+          cp sakaiprops/sakai.properties $CATALINA_HOME/sakai/
+          cp sakaiprops/context.xml $CATALINA_HOME/conf/
+          cp sakaiprops/server.xml $CATALINA_HOME/conf/
+          cp sakaiprops/mysql-connector-j-8.4.0.jar $CATALINA_HOME/lib/
+          cp sakaiprops/setenv.sh $CATALINA_HOME/bin/
 
+      - name: Package Tomcat Directory
+        run: |
           echo "📦 Packing entire Tomcat directory..."
           tar -czvf tomcat-package.tar.gz -C $CATALINA_HOME .
           ls -lah | tee collected_files.log
@@ -88,7 +100,7 @@ jobs:
           fetch-depth: 1
           ref: ${{ github.event.inputs.branch_name }}
 
-      - name: Download Tomcat Package (Built with Sakai)
+      - name: Download Tomcat Package
         uses: actions/download-artifact@v4
         with:
           name: tomcat-package
@@ -104,7 +116,7 @@ jobs:
 
       - name: Build Docker Image
         run: |
-          echo "✅ Building Docker image with pre-built Tomcat..."
+          echo "✅ Building Docker image..."
           docker build --no-cache -t ankitosm/sakai:${{ github.event.inputs.branch_name }} .
 
       - name: Log in to Docker Hub
@@ -126,18 +138,21 @@ jobs:
           username: ${{ secrets.VPS_USER }}
           password: ${{ secrets.VPS_PASSWORD }}
           script: |
-            echo "🔄 Stopping and removing old Sakai container..."
-            docker stop sakai-app || true
-            docker rm sakai-app || true
-
-            echo "🧹 Cleaning up old Sakai images..."
-            docker images | grep 'ankitosm/sakai' | awk '{print $3}' | xargs docker rmi -f || true
-
             echo "🔄 Pulling latest Sakai image..."
             docker pull ankitosm/sakai:${{ github.event.inputs.branch_name }}
 
             echo "🔄 Ensuring Docker network exists..."
             docker network create sakai_default || true
+
+            echo "🛑 Stopping existing Sakai container..."
+            docker stop sakai-app || true
+            docker rm sakai-app || true
+
+            echo "🔄 Setting up sakaiprops..."
+            rm -rf ~/sakai || true
+            mkdir -p ~/sakai
+            git clone https://${{ secrets.SAKAIPROPS_PAT }}@github.com/thakurankit99/sakaiprops.git ~/sakai
+            cp ~/sakai/sakai.properties ~/sakai/context.xml ~/sakai/server.xml ~/sakai/mysql-connector-j-8.4.0.jar ~/sakai/
 
             echo "🚀 Starting new Sakai container..."
             docker run -d --name sakai-app \
