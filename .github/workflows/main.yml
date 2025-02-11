@@ -36,7 +36,7 @@ jobs:
       - name: Set Environment Variables
         run: |
           echo "CATALINA_HOME=/opt/tomcat" >> $GITHUB_ENV
-          echo "SAKAI_HOME=$CATALINA_HOME/sakai" >> $GITHUB_ENV
+          echo "SAKAI_HOME=/opt/tomcat/sakai" >> $GITHUB_ENV
 
       - name: Build and Deploy Sakai
         run: |
@@ -66,6 +66,12 @@ jobs:
       - name: Setup Tomcat with sakaiprops
         run: |
           echo "📦 Setting up Tomcat with sakaiprops..."
+
+          # First create all necessary directories
+          sudo mkdir -p $CATALINA_HOME/{bin,conf,lib,logs,temp,webapps,work,sakai}
+          ls -la $CATALINA_HOME
+
+          echo "Extracting Tomcat..."
           tar xf sakaiprops/apache-tomcat-9.0.69.tar.gz
           cp -r apache-tomcat-9.0.69/bin/* $CATALINA_HOME/bin/
           chmod +x $CATALINA_HOME/bin/*.sh
@@ -76,6 +82,9 @@ jobs:
           cp sakaiprops/server.xml $CATALINA_HOME/conf/
           cp sakaiprops/mysql-connector-j-8.4.0.jar $CATALINA_HOME/lib/
           cp sakaiprops/setenv.sh $CATALINA_HOME/bin/
+
+          # Set proper permissions
+          sudo chown -R $USER:$USER $CATALINA_HOME
 
       - name: Package Tomcat Directory
         run: |
