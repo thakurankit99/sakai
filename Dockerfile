@@ -23,6 +23,7 @@ RUN tar -xzvf /opt/tomcat/tomcat-package.tar.gz -C /opt/tomcat \
 
 # Set environment variables for Tomcat
 ENV CATALINA_HOME=/opt/tomcat
+ENV SAKAI_HOME=/opt/tomcat/sakai
 ENV PATH=$CATALINA_HOME/bin:$PATH
 
 # Set appropriate permissions
