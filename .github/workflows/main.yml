@@ -44,7 +44,12 @@ jobs:
             -Dsakai.home=$CATALINA_HOME/sakai \
             -Djava.net.preferIPv4Stack=true \
             -Dmaven.test.skip=true \
-            -Dmaven.cleanup=true | tee build.log
+            -Dmaven.cleanup=true \
+            -Ddatabase.server.url=jdbc:mysql://mysql:3306/sakai_test \
+            -Ddatabase.server.username=testuser \
+            -Ddatabase.server.password=testpassword \
+            -Ddatabase.server.driver=com.mysql.cj.jdbc.Driver \
+            | tee build.log
       - name: Check for Build Errors
         if: failure()
         run: |
