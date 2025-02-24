@@ -4132,6 +4132,7 @@ public class AssignmentAction extends PagedResourceActionII {
             } else {
                 context.put("method", "doGrade_assignment");
                 context.put("urlParams", "assignmentId=" + assignmentRef);
+                context.put("selectedGroup", state.getAttribute(VIEW_SUBMISSION_LIST_OPTION));
             }
             return template + TEMPLATE_INSTRUCTOR_GRADE_SUBMISSION_WITH_GRADER;
         } else {
@@ -8668,6 +8669,9 @@ public class AssignmentAction extends PagedResourceActionII {
 
                         // the open date been announced
                         integrateWithAnnouncement(state, aOldTitle, a, title, openTime, checkAutoAnnounce, valueOpenDateNotification, oldOpenTime);
+
+                        // It should only be called once when updateAssignment has already been done
+                        eventTrackingService.post(eventTrackingService.newEvent(AssignmentConstants.EVENT_UPDATE_ASSIGNMENT, assignmentReference, true));
 
                         // integrate with Gradebook
                         try {
