@@ -23,6 +23,7 @@ package org.sakaiproject.tool.assessment.ui.listener.author;
 
 import java.util.Arrays;
 import java.util.Date;
+import java.util.Iterator;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -44,12 +45,16 @@ import org.sakaiproject.tool.api.ToolSession;
 import org.sakaiproject.tool.assessment.data.dao.assessment.AssessmentAccessControl;
 import org.sakaiproject.tool.assessment.data.ifc.assessment.AssessmentAccessControlIfc;
 import org.sakaiproject.tool.assessment.data.ifc.assessment.EvaluationModelIfc;
+import org.sakaiproject.tool.assessment.data.ifc.shared.TypeIfc;
 import org.sakaiproject.tool.assessment.facade.AgentFacade;
 import org.sakaiproject.tool.assessment.facade.AssessmentFacade;
+import org.sakaiproject.tool.assessment.facade.ItemFacade;
+import org.sakaiproject.tool.assessment.facade.SectionFacade;
 import org.sakaiproject.tool.assessment.integration.context.IntegrationContextFactory;
 import org.sakaiproject.tool.assessment.integration.helper.ifc.GradebookServiceHelper;
 import org.sakaiproject.tool.assessment.services.assessment.AssessmentService;
 import org.sakaiproject.tool.assessment.services.assessment.PublishedAssessmentService;
+import org.sakaiproject.tool.assessment.services.assessment.SecureDeliverySeb;
 import org.sakaiproject.tool.assessment.ui.bean.author.AssessmentBean;
 import org.sakaiproject.tool.assessment.ui.bean.author.AssessmentSettingsBean;
 import org.sakaiproject.tool.assessment.ui.bean.author.AuthorBean;
@@ -205,9 +210,9 @@ public class ConfirmPublishAssessmentListener
     if (assessmentSettings.getAutoSubmit()) {
         boolean autoSubmitEnabled = ServerConfigurationService.getBoolean("samigo.autoSubmit.enabled", true);
 
-        // If late submissions not allowed and late submission date is null but due date is populated, set late submission date to due date
+        // If late submissions not allowed but due date is populated, set late submission date to due date
         if (assessmentSettings.getLateHandling() != null && AssessmentAccessControlIfc.NOT_ACCEPT_LATE_SUBMISSION.toString().equals(assessmentSettings.getLateHandling()) &&
-                retractDate == null && dueDate != null && autoSubmitEnabled) {
+                dueDate != null && autoSubmitEnabled) {
             assessmentSettings.setRetractDate(dueDate);
         }
 
@@ -227,6 +232,12 @@ public class ConfirmPublishAssessmentListener
             error = true;
         }
     }
+
+	// if auto-submit and late-submissions are disabled Set retract date to null
+	if ( !assessmentSettings.getAutoSubmit() && retractDate != null && 
+		assessmentSettings.getLateHandling() != null && AssessmentAccessControlIfc.NOT_ACCEPT_LATE_SUBMISSION.toString().equals(assessmentSettings.getLateHandling())){
+		assessmentSettings.setRetractDate(null);
+	}
 
     if (!isFromActionSelect) {
     	if (assessmentSettings.getReleaseTo().equals(AssessmentAccessControl.RELEASE_TO_SELECTED_GROUPS)) {
@@ -435,6 +446,31 @@ public class ConfirmPublishAssessmentListener
             assessmentSettings.setSebAllowAudioControl(sebConfig.getAllowAudioControl());
             assessmentSettings.setSebConfigUploadId(sebConfig.getConfigUploadId());
             assessmentSettings.setSebAllowSpellChecking(sebConfig.getAllowSpellChecking());
+        }
+    }
+
+    String secureDeliveryModuleId = assessmentSettings.getSecureDeliveryModule();
+    if (StringUtils.equals(secureDeliveryModuleId, SecureDeliverySeb.MODULE_NAME)) {
+        boolean sebFileUploadError = false;
+        Iterator<SectionFacade> sectionFacadeIterator = assessment.getSectionSet().iterator();
+        while (sectionFacadeIterator.hasNext()){
+            SectionFacade sectionFacade = sectionFacadeIterator.next();
+            Iterator<ItemFacade> itemFacadeIterator = sectionFacade.getItemFacadeSet().iterator();
+            while (itemFacadeIterator.hasNext()){
+                ItemFacade itemFacade = itemFacadeIterator.next();
+                if (TypeIfc.FILE_UPLOAD.equals(itemFacade.getType().getTypeId())) {
+                    String sebUpload_err= ContextUtil.getLocalizedString("org.sakaiproject.tool.assessment.bundle.AssessmentSettingsMessages" , "seb_file_upload_error");
+                    context.addMessage(null,new FacesMessage(sebUpload_err));
+                    sebFileUploadError=true;
+                    break;
+                }
+            }
+            if (sebFileUploadError) {
+                break;
+            }
+        }
+        if (sebFileUploadError) {
+            error = true;
         }
     }
 

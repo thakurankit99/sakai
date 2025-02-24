@@ -67,6 +67,10 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
+import java.security.DigestInputStream;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
@@ -1267,8 +1271,9 @@ SiteContentAdvisorProvider, SiteContentAdvisorTypeRegistry, HardDeleteAware
 		// way in UI that we know to do it. However admins can definitely see it from resources
 		// so warn except for admins. This check will return true for site owners even though
 		// the warning is issued.
+		// SAK-50946 - log debug instead of warn so we can delet temporary attachments in SiteMerger
 		if (isAttachmentResource(id) && isCollection(id) && !securityService.isSuperUser())
-		    log.warn("availability check for attachment collection " + id);
+		    log.debug("availability check for attachment collection {} ", id);
 
 		GroupAwareEntity entity = null;
 		//boolean isCollection = id.endsWith(Entity.SEPARATOR);
@@ -3821,6 +3826,89 @@ SiteContentAdvisorProvider, SiteContentAdvisorTypeRegistry, HardDeleteAware
 		}
 		
 		commitCollection(edit);	
+	}
+
+	public ContentResource copyAttachment(String oAttachmentPath, String toContext, String toolTitle, Map<String, String> attachmentImportMap) 
+		throws IdUnusedException, TypeException, PermissionException
+	{
+		ContentResource oAttachment = null;
+
+		try {
+			oAttachment = this.getResource(oAttachmentPath);
+			log.debug("Loaded resource from path = {} {}", oAttachmentPath, oAttachment);
+		} catch (Exception e) {
+			log.debug("Cannot find the attachment with path = {}, checking map {}", oAttachmentPath, e.toString());
+		}
+
+		if (oAttachment == null && attachmentImportMap != null) {
+			String lookupAttachmentPath = attachmentImportMap.get(oAttachmentPath);
+			if (lookupAttachmentPath == null) {
+				if (oAttachmentPath.startsWith(REFERENCE_ROOT)) {
+					oAttachmentPath = oAttachmentPath.replaceFirst(REFERENCE_ROOT, "");
+				} else {
+					oAttachmentPath = REFERENCE_ROOT + oAttachmentPath;
+				}
+				lookupAttachmentPath = attachmentImportMap.get(oAttachmentPath);
+				if (lookupAttachmentPath == null) {
+					log.warn("Cannot find the attachment in map path = {}, map = {}", oAttachmentPath, attachmentImportMap);
+					return null;
+				}
+			}
+			log.debug("Found the attachment in map = {} -> {}", oAttachmentPath, lookupAttachmentPath);
+			try {
+				oAttachment = this.getResource(lookupAttachmentPath);
+				log.debug("Loaded resource from map path = {} {}", lookupAttachmentPath, oAttachment);
+				oAttachmentPath = lookupAttachmentPath;
+			} catch (Exception e) {
+				log.warn("Cannot find the attachment in map path = {}, {}", lookupAttachmentPath, e.toString());
+			}
+		}
+
+		if (oAttachment == null) {
+			log.warn("Could not find resource associated with attachment {} to copy to site {} toolTitle {}", oAttachmentPath, toContext, toolTitle);
+			return null;
+		}
+
+		ContentResource attachment = null;
+		try {
+			try (InputStream content = oAttachment.streamContent()) {
+				if (this.isAttachmentResource(oAttachmentPath)) {
+					// add the new resource into attachment collection area
+					log.debug("Copying attachment {} to site {} attachments toolTitle {}", oAttachmentPath, toContext, toolTitle);
+					attachment = this.addAttachmentResource(
+							Validator.escapeResourceName(oAttachment.getProperties().getProperty(ResourceProperties.PROP_DISPLAY_NAME)),
+							toContext,
+							toolTitle,
+							oAttachment.getContentType(),
+							content,
+							oAttachment.getProperties());
+				} else {
+					// add the new resource into resource area
+					log.debug("Copying attachment {} to site {} content toolTitle {}", oAttachmentPath, toContext, toolTitle);
+					attachment = this.addResource(
+							Validator.escapeResourceName(oAttachment.getProperties().getProperty(ResourceProperties.PROP_DISPLAY_NAME)),
+							toContext,
+							1,
+							oAttachment.getContentType(),
+							content,
+							oAttachment.getProperties(),
+							Collections.emptyList(),
+							false,
+							null,
+							null,
+							NotificationService.NOTI_NONE);
+				}
+				log.debug("Copied attachment {} to site {} {}", oAttachmentPath, toContext, attachment.getReference());
+				return attachment;
+			} catch (Exception e) {
+				log.warn("Cannot add new attachment with id = {}, {}", oAttachmentPath, e.toString());
+				return null;
+			}
+		} catch (Exception e) {
+			// if cannot find the original attachment, do nothing.
+			log.warn("Cannot get the original attachment with id = {}, {}", oAttachmentPath, e.toString());
+		}
+		return null;
 	}
 
 	/**
@@ -7301,7 +7389,7 @@ SiteContentAdvisorProvider, SiteContentAdvisorTypeRegistry, HardDeleteAware
 							String oldRef = getReference(id);
 
 							// take the name from after /attachment/whatever/
-							id = ATTACHMENTS_COLLECTION + idManager.createUuid()
+							id = ATTACHMENTS_COLLECTION + "TA-" + idManager.createUuid()
 							+ id.substring(id.indexOf('/', ATTACHMENTS_COLLECTION.length()));
 
 							// record the rename
@@ -7647,7 +7735,11 @@ SiteContentAdvisorProvider, SiteContentAdvisorTypeRegistry, HardDeleteAware
 								if (cch != null) {
 									cch.copy(((ContentResource) oResource));
 								}
-							} catch (PermissionException|IdUsedException|IdInvalidException|InconsistentException|ServerOverloadException e) {
+							} catch (IdUsedException e) {
+								// Resource already exists, thats ok, but we should still put it in the traversalMap
+								traversalMap.put(oResource.getId(), nId);
+								traversalMap.put(oResource.getUrl(), nUrl);
+							} catch (PermissionException|IdInvalidException|InconsistentException|ServerOverloadException e) {
 							}
 						} // if
 					} // if
@@ -8224,23 +8316,41 @@ SiteContentAdvisorProvider, SiteContentAdvisorTypeRegistry, HardDeleteAware
 		// write the content to a file
 		String fileName = idManager.createUuid();
 		InputStream stream = null;
+		DigestInputStream dis = null;
+		String sha256 = null;
 		FileOutputStream out = null;
 		try
 		{
+			sha256 = null;
 			stream = resource.streamContent();
+			// Create a message digest object for calculating the hash
+			MessageDigest md = MessageDigest.getInstance("SHA-256");
+			// Create a digest input stream, wrapping the file input stream
+			dis = new DigestInputStream(stream, md);
+
 			out = new FileOutputStream(storagePath + fileName);
 			byte[] chunk = new byte[STREAM_BUFFER_SIZE];
 			int lenRead;
-			while ((lenRead = stream.read(chunk)) != -1)
+			while ((lenRead = dis.read(chunk)) != -1)
 			{
 				out.write(chunk, 0, lenRead);
 			}
+			byte[] digest = md.digest();
+			// Convert the digest to a hexadecimal string
+			StringBuilder hexString = new StringBuilder();
+			for (byte b : digest) {
+				hexString.append(String.format("%02x", b));
+			}
+			sha256 = hexString.toString();
 		}
 		catch (IOException e)
 		{
 			log.warn("archiveResource(): while writing body for: " + resource.getId() + " : " + e);
 		} catch (ServerOverloadException e) {
 			log.warn("archiveResource(): while writing body for: " + resource.getId() + " : " + e);
+		} catch (NoSuchAlgorithmException e) {
+			// Unlikely
+			log.error("NoSuchAlgorithmException ", e);
 		}
 		finally
 		{
@@ -8249,6 +8359,18 @@ SiteContentAdvisorProvider, SiteContentAdvisorTypeRegistry, HardDeleteAware
 				try
 				{
 					stream.close();
+				}
+				catch (IOException e)
+				{
+					log.error("IOException ", e);
+				}
+			}
+
+			if (dis != null)
+			{
+				try
+				{
+					dis.close();
 				}
 				catch (IOException e)
 				{
@@ -8271,6 +8393,7 @@ SiteContentAdvisorProvider, SiteContentAdvisorTypeRegistry, HardDeleteAware
 
 		// store the file name in the xml
 		el.setAttribute("body-location", fileName);
+		if ( sha256 != null ) el.setAttribute("sha256", sha256);
 
 		// store the relative file id in the xml
 		if (siteCollectionId != null)

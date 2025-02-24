@@ -23,7 +23,7 @@ document.addEventListener("DOMContentLoaded", () => {
     b.addEventListener("click", () => portal.search.setup({}));
   });
 
-  document.getElementById("sakai-account-panel").addEventListener("show.bs.offcanvas", (e) => {
+  document.getElementById("sakai-account-panel")?.addEventListener("show.bs.offcanvas", (e) => {
   
     e.target.querySelector("sakai-grades")?.loadData();
     e.target.querySelector("sakai-calendar")?.loadData();
@@ -31,6 +31,6 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 
   document.getElementById("sakai-notifications-panel")?.addEventListener("hidden.bs.offcanvas", e => {
-    e.target.querySelector("sakai-notifications").clearTestNotifications();
+    e.target.querySelector("sakai-notifications")?._clearTestNotifications();
   });
 });

@@ -106,6 +106,7 @@ import org.sakaiproject.authz.api.SecurityService;
 import org.sakaiproject.calendar.api.Calendar;
 import org.sakaiproject.calendar.api.CalendarEventEdit;
 import org.sakaiproject.calendar.api.CalendarService;
+import org.sakaiproject.calendar.api.CalendarConstants;
 import org.sakaiproject.component.app.messageforums.dao.hibernate.DBMembershipItemImpl;
 import org.sakaiproject.component.app.messageforums.dao.hibernate.util.comparator.ForumBySortIndexAscAndCreatedDateDesc;
 import org.sakaiproject.component.cover.ComponentManager;
@@ -2277,15 +2278,8 @@ public class DiscussionForumTool {
     } else {  //don't do anything with forumItem or the Calendar if it's not a Forum or a Forum Topic.
       return;
     }
+
     Collection<Group> allowedGroups = getAllowedGroups(membershipItems);
-    if (allowedGroups.size() == 0 && !studentsAllowed(membershipItems)) {
-      sendOpenCloseToCalendar = false; //if no groups or students are allowed to see this, we will treat it as though Send is not checked at all.
-      if (forumItem instanceof DiscussionTopic) {  //clear the forum item's value as well, if this is the case.
-        ((DiscussionTopic) forumItem).setSendOpenCloseToCalendar(false);
-      } else if (forumItem instanceof DiscussionForum) {
-        ((DiscussionForum) forumItem).setSendOpenCloseToCalendar(false);
-      }
-    }
     try {   //now actually start processing the data for Calendar.
       Calendar targetCalendar = this.calendarService.getCalendar(calendarService.calendarReference(getContextSiteId().replace("/site/",""), siteService.MAIN_CONTAINER));
       if(targetCalendar == null){
@@ -2308,6 +2302,7 @@ public class DiscussionForumTool {
             begin.setType(getResourceBundleString("sendOpenCloseToCalendar.type"));
             begin.setGroupAccess(allowedGroups, false);
             begin.setRange(this.timeService.newTimeRange(openDate.getTime(), 0));
+            begin.setField(CalendarConstants.EVENT_OWNED_BY_TOOL_ID, FORUMS_TOOL_ID);
             targetCalendar.commitEvent(begin);
           } else {  //if there is a Calendar event for the current forum item, but the open date is cleared, we interpret this as a removal.
             targetCalendar.removeEvent(begin);
@@ -2320,6 +2315,7 @@ public class DiscussionForumTool {
           begin.setType(getResourceBundleString("sendOpenCloseToCalendar.type"));
           begin.setGroupAccess(allowedGroups, false);
           begin.setRange(this.timeService.newTimeRange(openDate.getTime(), 0));
+          begin.setField(CalendarConstants.EVENT_OWNED_BY_TOOL_ID, FORUMS_TOOL_ID);
           targetCalendar.commitEvent(begin);
         }
         if (calendarEndId != null) {
@@ -2336,6 +2332,7 @@ public class DiscussionForumTool {
             end.setType(getResourceBundleString("sendOpenCloseToCalendar.type"));
             end.setGroupAccess(allowedGroups, false);
             end.setRange(this.timeService.newTimeRange(closeDate.getTime(), 0));
+            end.setField(CalendarConstants.EVENT_OWNED_BY_TOOL_ID, FORUMS_TOOL_ID);
             targetCalendar.commitEvent(end);
           } else {  //if there is a Calendar record for the closing, but no close date, we interpret it as a removal.
             targetCalendar.removeEvent(end);
@@ -2348,6 +2345,7 @@ public class DiscussionForumTool {
           end.setType(getResourceBundleString("sendOpenCloseToCalendar.type"));
           end.setGroupAccess(allowedGroups, false);
           end.setRange(this.timeService.newTimeRange(closeDate.getTime(), 0));
+          end.setField(CalendarConstants.EVENT_OWNED_BY_TOOL_ID, FORUMS_TOOL_ID);
           targetCalendar.commitEvent(end);
         }
         if (begin != null) { //put the Calendar entry for Open in the Forum data.
@@ -2441,13 +2439,6 @@ public class DiscussionForumTool {
       }
     }
     return output;
-  }
-
-  private Boolean studentsAllowed (Set<DBMembershipItem> membershipItems){  //find out if users in the Student role are allowed to use a Forum Item in any way.
-    if (membershipItems != null) {
-      return membershipItems.stream().filter(itemNow -> itemNow.getName().equals("Student") && !itemNow.getPermissionLevelName().equals("None")).findFirst().isPresent();
-    }
-    return false;
   }
 
   /**

@@ -27,9 +27,11 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.Date;
 import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.HashMap;
 import java.util.Set;
 import java.util.Stack;
 import java.util.UUID;
@@ -38,6 +40,7 @@ import java.util.stream.Collectors;
 
 import lombok.extern.slf4j.Slf4j;
 import lombok.Data;
+import lombok.Setter;
 
 import org.springframework.dao.DataAccessException;
 
@@ -48,12 +51,11 @@ import org.w3c.dom.NodeList;
 import org.sakaiproject.entity.api.Entity;
 import org.sakaiproject.entity.api.EntityManager;
 import org.sakaiproject.entity.api.EntityTransferrer;
-import org.sakaiproject.entity.api.HttpAccess;
 import org.sakaiproject.entity.api.Reference;
-import org.sakaiproject.entity.api.ResourceProperties;
 import org.sakaiproject.genericdao.api.search.Order;
 import org.sakaiproject.genericdao.api.search.Restriction;
 import org.sakaiproject.genericdao.api.search.Search;
+import org.sakaiproject.lti.api.LTIService;
 import org.sakaiproject.id.api.IdManager;
 import org.sakaiproject.poll.dao.PollDao;
 import org.sakaiproject.poll.logic.ExternalLogic;
@@ -76,6 +78,7 @@ public class PollListManagerImpl implements PollListManager,EntityTransferrer {
     private PollDao dao;
     private PollVoteManager pollVoteManager;    
     private ExternalLogic externalLogic;
+    @Setter private LTIService ltiService;
 
     public void init() {
         try {
@@ -454,20 +457,41 @@ public class PollListManagerImpl implements PollListManager,EntityTransferrer {
         return results.toString();
     }
 
-    public String merge(String siteId, Element root, String archivePath, String fromSiteId, Map<String, String> attachmentNames, Map<String, String> userIdTrans, Set<String> userListAllowImport) {
-        /* USERS ARE NOT MERGED */
+    public String merge(String siteId, Element root, String archivePath, String fromSiteId, String creatorId, Map<String, String> attachmentNames,
+            Map<Long, Map<String, Object>> ltiContentItems, Map<String, String> userIdTrans, Set<String> userListAllowImport) {
+
+        List<Poll> pollsList = findAllPolls(siteId);
+        Set<String> pollTexts = pollsList.stream().map(Poll::getText).collect(Collectors.toCollection(LinkedHashSet::new));
+
+        // Add polls not already in the site
         NodeList polls = root.getElementsByTagName("poll");
         for (int i=0; i<polls.getLength(); ++i) {
             Element pollElement = (Element) polls.item(i);
             Poll poll = Poll.fromXML(pollElement);
+
+            String pollText = poll.getText();
+            if ( pollText == null ) continue;
+            if ( pollTexts.contains(pollText) ) continue;
+
             poll.setSiteId(siteId);
+            poll.setOwner(creatorId);
+            String details = poll.getDetails();
+            details = ltiService.fixLtiLaunchUrls(details, siteId, ltiContentItems);
+            poll.setDetails(details);
+
             savePoll(poll);
             NodeList options = pollElement.getElementsByTagName("option");
             for (int j=0; j<options.getLength(); ++j) {
                 Element optionElement = (Element) options.item(j);
                 Option option = PollUtil.xmlToOption(optionElement);
+                option.setOptionId(null);  // To force insert
+                option.setUuid(UUID.randomUUID().toString());
                 option.setPollId(poll.getPollId());
+                String text = option.getText();
+                text = ltiService.fixLtiLaunchUrls(text, siteId, ltiContentItems);
+                option.setText(text);
                 saveOption(option);
+                poll.addOption(option);
             }
         }
         return null;
@@ -548,7 +572,7 @@ public class PollListManagerImpl implements PollListManager,EntityTransferrer {
 
     @Override
     public Map<String, String> transferCopyEntities(String fromContext, String toContext, List<String> resourceIds, List<String> transferOptions) {
-
+        Map<String, String> transversalMap = new HashMap<>();
         try {
             for (Poll fromPoll : findAllPolls(fromContext)) {
                 Poll fromPollV = getPollWithVotes(fromPoll.getPollId());
@@ -563,7 +587,9 @@ public class PollListManagerImpl implements PollListManager,EntityTransferrer {
                 toPoll.setVoteClose(fromPollV.getVoteClose());
                 toPoll.setDisplayResult(fromPollV.getDisplayResult());
                 toPoll.setLimitVoting(fromPollV.getLimitVoting());
-                toPoll.setDetails(fromPollV.getDetails());
+                String details = fromPollV.getDetails();
+                details = ltiService.fixLtiLaunchUrls(details, fromContext, toContext, transversalMap);
+                toPoll.setDetails(details);
  
                 //Guardamos toPoll para que se puedan ir añandiéndole las opciones y los votos
                 savePoll(toPoll);
@@ -573,11 +599,15 @@ public class PollListManagerImpl implements PollListManager,EntityTransferrer {
                 if (options != null) {
                     for (Option fromOption : options) {
                         Option toOption = new Option();
-                        toOption.setText(fromOption.getText());
                         toOption.setStatus(fromOption.getStatus());
                         toOption.setPollId(toPoll.getPollId());
                         toOption.setDeleted(fromOption.getDeleted());
                         toOption.setOptionOrder(fromOption.getOptionOrder());
+
+                        String text = fromOption.getText();
+                        text = ltiService.fixLtiLaunchUrls(text, fromContext, toContext, transversalMap);
+                        toOption.setText(text);
+
                         saveOption(toOption);
  
                         toPoll.addOption(toOption);
@@ -597,7 +627,7 @@ public class PollListManagerImpl implements PollListManager,EntityTransferrer {
             log.error("Failed to save transfer polls: {}", e.toString());
         }
 
-        return null;
+        return transversalMap;
     }
 
 

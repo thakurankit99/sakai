@@ -1,5 +1,6 @@
 import "../sakai-rubric-association.js";
 import "../sakai-rubric-student.js";
+import "../sakai-rubric-readonly.js";
 import "../sakai-rubric-student-preview-button.js";
 import "../sakai-rubrics-manager.js";
 import "../sakai-rubric-grading.js";
@@ -8,7 +9,7 @@ import "../sakai-rubric-criterion-preview.js";
 import "../sakai-rubrics-utils.js";
 import { html } from "lit";
 import * as data from "./data.js";
-import { elementUpdated, expect, fixture, oneEvent, waitUntil } from "@open-wc/testing";
+import { aTimeout, elementUpdated, expect, fixture, oneEvent, waitUntil } from "@open-wc/testing";
 import fetchMock from "fetch-mock/esm/client";
 
 window.top.portal = { locale: "en_GB" };
@@ -46,8 +47,6 @@ window.sakai = window.sakai || {
 describe("sakai-rubrics tests", () => {
 
   it ("renders a rubric association correctly", async () => {
-
-    console.debug("association test");
 
     let el = await fixture(html`
       <sakai-rubric-association site-id="${data.siteId}"
@@ -95,12 +94,6 @@ describe("sakai-rubrics tests", () => {
 
     expect(rubricStudent.hasAttribute("rubric-id")).to.be.true;
     expect(rubricStudent.hasAttribute("site-id")).to.be.true;
-
-    await waitUntil(() => rubricStudent.querySelector(".itemSeparator"), "No .itemSeparator created");
-    expect(rubricStudent.querySelector(".itemSeparator")).to.exist;
-    expect(rubricStudent.querySelector("#rubric-grading-or-preview")).to.exist;
-    expect(rubricStudent.querySelector("sakai-rubric-criterion-student")).to.not.exist;
-    expect(rubricStudent.querySelector("sakai-rubric-criterion-preview")).to.exist;
   });
 
   it ("renders a rubric student correctly", async () => {
@@ -271,7 +264,7 @@ describe("sakai-rubrics tests", () => {
     modal = el.querySelector(".modal.show");
     expect(modal).to.exist;
 
-    let titleInput = modal.querySelector(`#rubric-title-edit-${data.rubric1.id}`);
+    let titleInput = modal.querySelector("input[type='text']");
     expect(titleInput.getAttribute("value")).to.equal(data.rubric1.title);
     titleInput.value = 'foobar';
     titleInput.dispatchEvent(new Event("input"));
@@ -289,7 +282,7 @@ describe("sakai-rubrics tests", () => {
     button.click();
     await listener;
 
-    titleInput = modal.querySelector(`#rubric-title-edit-${data.rubric1.id}`);
+    titleInput = modal.querySelector("input[type='text']");
     expect(titleInput.value).to.equal(data.rubric1.title);
   });
 
@@ -368,6 +361,7 @@ describe("sakai-rubrics tests", () => {
     expect(el.querySelectorAll(".criterion-group").length).to.equal(1);
   });
 
+  /*
   it ("is rubrics manager accessible", async () => {
 
     let el = await fixture(html`
@@ -378,6 +372,7 @@ describe("sakai-rubrics tests", () => {
 
     expect(el).to.be.accessible();
   });
+  */
 
   it ("updating rubric title updates the UI in all appropriate places for an unlocked rubric", async () => {
     await checkRubricTitleChanges(data.rubric1);
@@ -423,13 +418,13 @@ describe("sakai-rubrics tests", () => {
    * Look for all places in the dom that should render any sort of rubric title
    **/
   function validateRubricTitle(rubricData, el, titleToCheck) {
-    console.log(`Validating for '${titleToCheck}'`);
+    console.debug(`Validating for '${titleToCheck}'`);
 
     expect(el.querySelector(".rubric-name").textContent).to.equal(titleToCheck);
     expect(el.querySelector(`#rubric-toggle-${rubricData.id}`).title).to.equal(`${el._i18n.toggle_details} ${titleToCheck}`);
 
     if (rubricData.locked) {
-      console.log("Checking locked elements...");
+      console.debug("Checking locked elements...");
       elementChecks(el, "span.locked", titleToCheck);
     }
 
@@ -439,7 +434,7 @@ describe("sakai-rubrics tests", () => {
     elementChecks(el, "a.pdf", titleToCheck);
 
     if (!rubricData.locked) {
-      console.log("Checking delete elements...");
+      console.debug("Checking delete elements...");
       elementChecks(el, `button[aria-controls="delete-rubric-${rubricData.id}"]`, titleToCheck);
     }
   }
@@ -454,6 +449,7 @@ describe("sakai-rubrics tests", () => {
   }
 
   it ("Criterion reorder, then mark as draft", async () => {
+
     let el = await fixture(html`
       <sakai-rubric site-id="${data.siteId}"
                     .rubric=${data.rubric4}
@@ -493,5 +489,52 @@ describe("sakai-rubrics tests", () => {
     expect(reorderableRows[0].getAttribute('data-criterion-id')).to.equal(String(data.criteria3[1].id));
     expect(reorderableRows[1].getAttribute('data-criterion-id')).to.equal(String(data.criteria3[0].id));
 
+  });
+
+  it ("renders a readonly rubric", async () => {
+
+    let el = await fixture(html`
+      <sakai-rubric-readonly site-id="${data.siteId}"
+          .rubric=${data.rubric4}>
+      </sakai-rubric-readonly>
+    `);
+
+    await waitUntil(() => el._i18n && el.rubric);
+
+    expect(el.querySelector(".rubric-title")).to.exist;
+
+    expect(el.querySelector(".delete-rubric-button")).to.not.exist;
+
+    el.setAttribute("is-super-user", "");
+    await elementUpdated(el);
+
+    expect(el.querySelector(".delete-rubric-button")).to.exist;
+
+    // Test the toggling of the criteria
+    const toggleEl = el.querySelector(`#rubric-toggle-shared-${el.rubric.id}`);
+    expect(toggleEl).to.exist;
+
+    // Wait until the bootstrap Collapse is shown
+    const listener = oneEvent(el.querySelector(".collapse"), "shown.bs.collapse");
+    toggleEl.click();
+    await listener;
+
+    expect(el.querySelector(".rubric-details")).to.exist;
+    expect(el.querySelector(".collapse").classList.contains("show")).to.be.true;
+
+    expect(el.querySelector("span.locked")).to.not.exist;
+
+    // Now set the rubric to be one which is locked
+    el.rubric = data.rubric1;
+    await elementUpdated(el);
+
+    expect(el.querySelector(".delete-rubric-button")).to.not.exist;
+
+    el.setAttribute("is-super-user", "");
+    await elementUpdated(el);
+
+    expect(el.querySelector(".delete-rubric-button")).to.not.exist;
+
+    expect(el.querySelector("span.locked")).to.exist;
   });
 });

@@ -19,13 +19,6 @@ export class SakaiRubricsList extends RubricsElement {
     _rubrics: { state: true },
   };
 
-  constructor() {
-
-    super();
-
-    this.enablePdfExport = false;
-  }
-
   set siteId(value) {
 
     this._siteId = value;
@@ -53,9 +46,9 @@ export class SakaiRubricsList extends RubricsElement {
       <div role="presentation">
         <div role="tablist">
         ${repeat(this._rubrics, r => r.id, r => html`
-          <sakai-rubric @clone-rubric=${this.cloneRubric}
-              site-id="${this.siteId}"
-              @delete-item=${this.deleteRubric}
+          <sakai-rubric site-id="${this.siteId}"
+              @clone-rubric=${this.cloneRubric}
+              @delete-item=${this._rubricDeleted}
               .rubric=${r}
               ?enable-pdf-export=${this.enablePdfExport}>
           </sakai-rubric>
@@ -109,7 +102,7 @@ export class SakaiRubricsList extends RubricsElement {
     this.requestUpdate();
   }
 
-  deleteRubric(e) {
+  _rubricDeleted(e) {
 
     e.stopPropagation();
     this._rubrics.splice(this._rubrics.map(r => r.id).indexOf(e.detail.id), 1);

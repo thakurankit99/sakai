@@ -34,8 +34,6 @@ export class SakaiRubric extends RubricsElement {
       credentials: "include",
       headers: { "Content-Type": "application/json-patch+json" },
     };
-
-    this.enablePdfExport = false;
   }
 
   set rubric(value) {
@@ -125,8 +123,7 @@ export class SakaiRubric extends RubricsElement {
               aria-label="${this.rubric.title} ${this.tr("is_locked")}"
               class="locked fa fa-lock icon-spacer">
             </span>`
-            : ""
-          }
+          : nothing}
           <sakai-rubric-edit
             id="rubric-edit-${this.rubric.id}"
             @update-rubric-title=${this.updateRubricTitle}
@@ -144,8 +141,7 @@ export class SakaiRubric extends RubricsElement {
             >
               ${this.tr("draft_label")}
             </span>`
-            : ""
-          }
+          : nothing}
         </div>
 
         <div class="d-none d-sm-block rubric-site-title">${this.rubric.siteTitle}</div>
@@ -174,8 +170,7 @@ export class SakaiRubric extends RubricsElement {
                 <span class="fa ${this._weightedIcon}"></span>
               </button>
             </div>`
-            : ""
-          }
+          : nothing}
           <div class="action-container">
             <button type="button"
                 class="btn btn-sm share"
@@ -204,8 +199,7 @@ export class SakaiRubric extends RubricsElement {
                 class="sakai-rubric">
               </sakai-item-delete>
             </div>`
-            : ""
-          }
+          : nothing}
           ${this.enablePdfExport ? html`
             <div class="action-container">
               <sakai-rubric-pdf
@@ -214,8 +208,7 @@ export class SakaiRubric extends RubricsElement {
                 rubric-id="${this.rubric.id}">
               </sakai-rubric-pdf>
             </div>`
-            : ""
-          }
+          : nothing}
         </div>
       </div>
 
@@ -256,6 +249,7 @@ export class SakaiRubric extends RubricsElement {
 
       if (r.ok) {
         this.rubric.title = e.detail;
+        this.rubric.new = false;
         this.requestUpdate();
         this.updateOtherItems();
         this.dispatchEvent(new SharingChangeEvent());
