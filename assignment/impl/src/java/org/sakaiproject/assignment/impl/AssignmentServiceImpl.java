@@ -3126,8 +3126,13 @@ public class AssignmentServiceImpl implements AssignmentService, EntityTransferr
 
     @Override
     public Optional<AssignmentSubmissionSubmitter> getSubmissionSubmittee(AssignmentSubmission submission) {
-        Objects.requireNonNull(submission, "Submission cannot be null");
-        return submission.getSubmitters().stream().filter(AssignmentSubmissionSubmitter::getSubmittee).findFirst();
+        return Optional.ofNullable(submission)
+                .map(AssignmentSubmission::getSubmitters)
+                .flatMap(submitters -> submitters.stream()
+                        .filter(AssignmentSubmissionSubmitter::getSubmittee)
+                        .findFirst()
+                        .or(() -> submitters.stream().findFirst())
+                );
     }
 
     @Override
@@ -4009,7 +4014,7 @@ public class AssignmentServiceImpl implements AssignmentService, EntityTransferr
                         done.put(candidateName, 1);
                     } else {
                         String fileName = FilenameUtils.removeExtension(candidateName);
-                        String fileExt = FilenameUtils.getExtension(candidateName);
+                        String fileExt = org.springframework.util.StringUtils.getFilenameExtension(candidateName);
                         if (!"".equals(fileExt.trim())) {
                             fileExt = "." + fileExt;
                         }
@@ -4255,7 +4260,10 @@ public class AssignmentServiceImpl implements AssignmentService, EntityTransferr
                     nAssignment.setTypeOfSubmission(oAssignment.getTypeOfSubmission());
 
                     // User supplied publish option takes precedence, then property, then source.
-                    if (transferOptions != null && transferOptions.contains(EntityTransferrer.PUBLISH_OPTION)) {
+                    if (oAssignment.getAllowPeerAssessment()) {
+                        // Always set peer assessment assignments to draft on import as they need setup
+                        nAssignment.setDraft(true);
+                    } else if (transferOptions != null && transferOptions.contains(EntityTransferrer.PUBLISH_OPTION)) {
                         nAssignment.setDraft(false);
                     } else if (serverConfigurationService.getBoolean("import.importAsDraft", true)) {
                         nAssignment.setDraft(true);
